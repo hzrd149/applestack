@@ -281,6 +281,85 @@ function useCustomHook() {
 }
 ```
 
+### Connecting to Multiple Nostr Relays
+
+By default, the `nostr` object from `useNostr` uses a pool configuration that reads data from 1 relay and publishes to all configured relays. However, you can connect to specific relays or groups of relays for more granular control:
+
+#### Single Relay Connection
+
+To read and publish from one specific relay, use `nostr.relay()` with a WebSocket URL:
+
+```typescript
+import { useNostr } from '@nostrify/react';
+
+function useSpecificRelay() {
+  const { nostr } = useNostr();
+
+  // Connect to a specific relay
+  const relay = nostr.relay('wss://relay.damus.io');
+
+  // Query from this specific relay only
+  const events = await relay.query([{ kinds: [1], limit: 20 }], { signal });
+
+  // Publish to this specific relay only
+  await relay.event({ kind: 1, content: 'Hello from specific relay!' });
+}
+```
+
+#### Multiple Relay Group
+
+To read and publish from a specific set of relays, use `nostr.group()` with an array of relay URLs:
+
+```typescript
+import { useNostr } from '@nostrify/react';
+
+function useRelayGroup() {
+  const { nostr } = useNostr();
+
+  // Create a group of specific relays
+  const relayGroup = nostr.group([
+    'wss://relay.damus.io',
+    'wss://relay.nostr.band',
+    'wss://nos.lol'
+  ]);
+
+  // Query from all relays in the group
+  const events = await relayGroup.query([{ kinds: [1], limit: 20 }], { signal });
+
+  // Publish to all relays in the group
+  await relayGroup.event({ kind: 1, content: 'Hello from relay group!' });
+}
+```
+
+#### API Consistency
+
+Both `relay` and `group` objects have the same API as the main `nostr` object, including:
+
+- `.query()` - Query events with filters
+- `.req()` - Create subscriptions
+- `.event()` - Publish events
+- All other Nostr protocol methods
+
+#### Use Cases
+
+**Single Relay (`nostr.relay()`):**
+- Testing specific relay behavior
+- Querying relay-specific content
+- Debugging connectivity issues
+- Working with specialized relays
+
+**Relay Group (`nostr.group()`):**
+- Querying from trusted relay sets
+- Publishing to specific communities
+- Load balancing across relay subsets
+- Geographic relay optimization
+
+**Default Pool (`nostr`):**
+- General application queries
+- Maximum reach for publishing
+- Default user experience
+- Simplified relay management
+
 ### Query Nostr Data with `useNostr` and Tanstack Query
 
 When querying Nostr, the best practice is to create custom hooks that combine `useNostr` and `useQuery` to get the required data.
