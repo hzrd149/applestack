@@ -36,6 +36,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useWallet`: Unified wallet detection (WebLN + NWC)
   - `useNWC`: Nostr Wallet Connect connection management
   - `useNWCContext`: Access NWC context provider
+  - `useShakespeare`: AI chat completions with Shakespeare AI API
 - `/src/pages/`: Page components used by React Router (Index, NotFound)
 - `/src/lib/`: Utility functions and shared logic
 - `/src/contexts/`: React context providers (AppContext, NWCContext)
@@ -841,6 +842,69 @@ const encrypted = await user.signer.nip44.encrypt(user.pubkey, "hello world");
 // Decrypt message to self
 const decrypted = await user.signer.nip44.decrypt(user.pubkey, encrypted) // "hello world"
 ```
+
+### AI Integration with Shakespeare API
+
+The project includes `useShakespeare` hook for AI chat completions using the Shakespeare AI API. This provides access to premium AI models with Nostr-based authentication.
+
+#### Basic Usage
+
+```tsx
+import { useShakespeare } from '@/hooks/useShakespeare';
+
+function AIChat() {
+  const { sendChatMessage, sendStreamingMessage, isLoading, error } = useShakespeare();
+  const [messages, setMessages] = useState([]);
+
+  const handleSendMessage = async (content: string) => {
+    try {
+      const response = await sendChatMessage([
+        ...messages,
+        { role: 'user', content }
+      ], 'shakespeare'); // or 'tybalt' for free model
+      
+      setMessages(prev => [...prev, 
+        { role: 'user', content },
+        { role: 'assistant', content: response.choices[0].message.content }
+      ]);
+    } catch (err) {
+      console.error('AI request failed:', err);
+    }
+  };
+
+  return (
+    <div>
+      {error && <div className="text-red-500">{error}</div>}
+      {/* Chat UI */}
+    </div>
+  );
+}
+```
+
+#### Streaming Responses
+
+```tsx
+const handleStreamingMessage = async (content: string) => {
+  let fullResponse = '';
+  
+  await sendStreamingMessage([
+    ...messages,
+    { role: 'user', content }
+  ], 'shakespeare', (chunk) => {
+    fullResponse += chunk;
+    // Update UI with streaming content
+  });
+};
+```
+
+#### Available Models
+
+- **`shakespeare`**: Premium model
+- **`tybalt`**: Free model for testing (no cost)
+
+#### Authentication
+
+The hook automatically handles NIP-98 authentication using the current user's Nostr signer. Users must be logged in to use AI features.
 
 ### Rendering Rich Text Content
 
