@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useCurrentUser } from './useCurrentUser';
+import type { NUser } from '@nostrify/react/login';
 
 // Types for Shakespeare API (compatible with OpenAI ChatCompletionMessageParam)
 export interface ChatMessage {
@@ -65,21 +66,35 @@ async function createNIP98Token(
   method: string,
   url: string,
   body?: unknown,
-  user?: { signer: { signEvent: (event: { kind: number; content: string; tags: string[][]; created_at: number }) => Promise<{ id: string; pubkey: string; created_at: number; kind: number; tags: string[][]; content: string; sig: string }> } }
+  user?: NUser
 ): Promise<string> {
   if (!user?.signer) {
     throw new Error('User signer is required for NIP-98 authentication');
+  }
+
+  // Create the tags array
+  const tags: string[][] = [
+    ['u', url],
+    ['method', method]
+  ];
+
+  // Add payload hash for requests with body (following NIP-98 spec)
+  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    const bodyString = JSON.stringify(body);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(bodyString);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const payloadHash = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    tags.push(['payload', payloadHash]);
   }
 
   // Create the HTTP request event
   const event = await user.signer.signEvent({
     kind: 27235, // NIP-98 HTTP Auth
     content: '',
-    tags: [
-      ['u', url],
-      ['method', method],
-      ...(body ? [['payload', JSON.stringify(body)]] : [])
-    ],
+    tags,
     created_at: Math.floor(Date.now() / 1000)
   });
   
@@ -87,18 +102,40 @@ async function createNIP98Token(
   return btoa(JSON.stringify(event));
 }
 
-// Helper function to handle API errors
+// Helper function to handle API errors with user-friendly messages
 async function handleAPIError(response: Response) {
   if (response.status === 401) {
-    throw new Error('Authentication failed. Please check your Nostr credentials.');
+    throw new Error('Authentication failed. Please make sure you are logged in with a Nostr account.');
   } else if (response.status === 402) {
-    throw new Error('Insufficient credits. Please add credits to your account.');
+    throw new Error('Insufficient credits. Please add credits to your account to use premium models, or use the free "tybalt" model.');
   } else if (response.status === 400) {
-    const error = await response.json();
-    throw new Error(`Invalid request: ${error.details || error.error}`);
+    try {
+      const error = await response.json();
+      if (error.error?.type === 'invalid_request_error') {
+        // Handle specific validation errors
+        if (error.error.code === 'minimum_amount_not_met') {
+          throw new Error(`Minimum credit amount is $${error.error.minimum_amount}. Please increase your payment amount.`);
+        } else if (error.error.code === 'unsupported_method') {
+          throw new Error('Payment method not supported. Please use "stripe" or "lightning".');
+        } else if (error.error.code === 'invalid_url') {
+          throw new Error('Invalid redirect URL provided for Stripe payment.');
+        }
+      }
+      throw new Error(`Invalid request: ${error.error?.message || error.details || error.error || 'Please check your request parameters.'}`);
+    } catch (parseError) {
+      throw new Error('Invalid request. Please check your parameters and try again.');
+    }
+  } else if (response.status === 404) {
+    throw new Error('Resource not found. Please check the payment ID or try again.');
+  } else if (response.status >= 500) {
+    throw new Error('Server error. Please try again in a few moments.');
   } else if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(`API error: ${errorData.error || errorData.details || response.statusText}`);
+    try {
+      const errorData = await response.json();
+      throw new Error(`API error: ${errorData.error?.message || errorData.details || errorData.error || response.statusText}`);
+    } catch (parseError) {
+      throw new Error(`Network error: ${response.statusText}. Please check your connection and try again.`);
+    }
   }
 }
 
@@ -118,8 +155,8 @@ export function useShakespeare() {
     model: string = 'shakespeare',
     options?: Partial<ChatCompletionRequest>
   ): Promise<ChatCompletionResponse> => {
-    if (!user?.signer) {
-      throw new Error('User must be logged in with signer');
+    if (!user) {
+      throw new Error('User must be logged in to use AI features');
     }
 
     setIsLoading(true);
@@ -151,9 +188,23 @@ export function useShakespeare() {
       await handleAPIError(response);
       return await response.json();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      let errorMessage = 'An unexpected error occurred';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      // Add context for common issues
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      } else if (errorMessage.includes('signer')) {
+        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
+      }
+      
       setError(errorMessage);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -166,8 +217,8 @@ export function useShakespeare() {
     onChunk: (chunk: string) => void,
     options?: Partial<ChatCompletionRequest>
   ): Promise<void> => {
-    if (!user?.signer) {
-      throw new Error('User must be logged in with signer');
+    if (!user) {
+      throw new Error('User must be logged in to use AI features');
     }
 
     setIsLoading(true);
@@ -235,9 +286,23 @@ export function useShakespeare() {
         reader.releaseLock();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      let errorMessage = 'An unexpected error occurred';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      // Add context for common issues
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      } else if (errorMessage.includes('signer')) {
+        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
+      }
+      
       setError(errorMessage);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -245,8 +310,8 @@ export function useShakespeare() {
 
   // Get available models
   const getAvailableModels = useCallback(async (): Promise<ModelsResponse> => {
-    if (!user?.signer) {
-      throw new Error('User must be logged in with signer');
+    if (!user) {
+      throw new Error('User must be logged in to use AI features');
     }
 
     setIsLoading(true);
@@ -270,9 +335,23 @@ export function useShakespeare() {
       await handleAPIError(response);
       return await response.json();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      let errorMessage = 'An unexpected error occurred';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      // Add context for common issues
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      } else if (errorMessage.includes('signer')) {
+        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
+      }
+      
       setError(errorMessage);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -282,7 +361,7 @@ export function useShakespeare() {
     // State
     isLoading,
     error,
-    isAuthenticated: !!user?.signer,
+    isAuthenticated: !!user,
     
     // Actions
     sendChatMessage,

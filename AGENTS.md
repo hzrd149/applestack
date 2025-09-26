@@ -845,66 +845,91 @@ const decrypted = await user.signer.nip44.decrypt(user.pubkey, encrypted) // "he
 
 ### AI Integration with Shakespeare API
 
-The project includes `useShakespeare` hook for AI chat completions using the Shakespeare AI API. This provides access to premium AI models with Nostr-based authentication.
-
-#### Basic Usage
+Use the `useShakespeare` hook for AI chat completions with Nostr authentication.
 
 ```tsx
-import { useShakespeare } from '@/hooks/useShakespeare';
+import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 
+const { sendChatMessage, sendStreamingMessage, isLoading, error, isAuthenticated } = useShakespeare();
+```
+
+#### Basic Chat Example
+
+```tsx
 function AIChat() {
-  const { sendChatMessage, sendStreamingMessage, isLoading, error } = useShakespeare();
-  const [messages, setMessages] = useState([]);
+  const { sendChatMessage, isLoading, error, isAuthenticated } = useShakespeare();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
 
-  const handleSendMessage = async (content: string) => {
-    try {
-      const response = await sendChatMessage([
-        ...messages,
-        { role: 'user', content }
-      ], 'shakespeare'); // or 'tybalt' for free model
-      
-      setMessages(prev => [...prev, 
-        { role: 'user', content },
-        { role: 'assistant', content: response.choices[0].message.content }
-      ]);
-    } catch (err) {
-      console.error('AI request failed:', err);
-    }
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    
+    const newMessages = [...messages, { role: 'user', content: input }];
+    setMessages(newMessages);
+    setInput('');
+
+    const response = await sendChatMessage(newMessages, 'tybalt'); // Free model
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: response.choices[0].message.content as string
+    }]);
   };
 
+  if (!isAuthenticated) return <div>Please log in to use AI</div>;
+
   return (
-    <div>
-      {error && <div className="text-red-500">{error}</div>}
-      {/* Chat UI */}
+    <div className="max-w-2xl mx-auto p-4">
+      {error && <div className="text-red-500 mb-4">{error}</div>}
+      
+      <div className="space-y-2 mb-4">
+        {messages.map((msg, i) => (
+          <div key={i} className={`p-2 rounded ${msg.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'}`}>
+            <strong>{msg.role}:</strong> {msg.content}
+          </div>
+        ))}
+      </div>
+      
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          className="flex-1 p-2 border rounded"
+          disabled={isLoading}
+        />
+        <button onClick={handleSend} disabled={isLoading} className="px-4 py-2 bg-blue-500 text-white rounded">
+          Send
+        </button>
+      </div>
     </div>
   );
 }
 ```
 
-#### Streaming Responses
+#### Streaming Chat
 
 ```tsx
-const handleStreamingMessage = async (content: string) => {
-  let fullResponse = '';
-  
-  await sendStreamingMessage([
-    ...messages,
-    { role: 'user', content }
-  ], 'shakespeare', (chunk) => {
-    fullResponse += chunk;
-    // Update UI with streaming content
+const [currentResponse, setCurrentResponse] = useState('');
+
+const handleStreaming = async (content: string) => {
+  setCurrentResponse('');
+  await sendStreamingMessage(messages, 'shakespeare', (chunk) => {
+    setCurrentResponse(prev => prev + chunk);
   });
 };
 ```
 
-#### Available Models
+#### Models
 
-- **`shakespeare`**: Premium model
-- **`tybalt`**: Free model for testing (no cost)
+- **`tybalt`**: Free model for development
+- **`shakespeare`**: Premium model (requires credits)
 
-#### Authentication
+#### Key Points
 
-The hook automatically handles NIP-98 authentication using the current user's Nostr signer. Users must be logged in to use AI features.
+- User must be logged in with Nostr account
+- Use `tybalt` for free testing
+- Handle `isLoading` and `error` states
+- Check `isAuthenticated` before API calls
 
 ### Rendering Rich Text Content
 
