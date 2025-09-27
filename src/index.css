@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * IMPORTANT: The use of @apply is generally forbidden in this project.
+ *
+ * @apply is non-standard CSS and goes against the component-driven design philosophy
+ * of Tailwind. Instead of using @apply, create custom React components with the
+ * desired className and wrap elements where that style should be applied.
+ *
+ * The only exceptions are the base layer styles below, which are necessary for
+ * the shadcn/ui design system and global element defaults.
+ */
+
 @layer base {
   :root {
     --background: 0 0% 100%;
