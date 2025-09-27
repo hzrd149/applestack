@@ -1079,9 +1079,9 @@ When users specify color schemes:
 
 ### TailwindCSS Guidelines
 
-**CRITICAL**: Avoid using the `@apply` at-rule in CSS files. Instead, create custom components with the desired className and wrap elements where that style should be applied.
+**CRITICAL**: The `@apply` at-rule is completely forbidden in this project. Instead, create custom components with the desired className and wrap elements where that style should be applied.
 
-The `@apply` directive is non-standard CSS and goes against the component-driven design philosophy of Tailwind. It creates implicit dependencies and makes styles harder to trace and maintain.
+The `@apply` directive is non-standard CSS and goes against the component-driven design philosophy of Tailwind. It creates implicit dependencies and makes styles harder to trace and maintain. This project uses pure CSS with CSS custom properties for any global styles.
 
 **✅ Correct - Component-based approach:**
 ```tsx
