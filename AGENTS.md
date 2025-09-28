@@ -1077,44 +1077,6 @@ When users specify color schemes:
 - Implement responsive design with Tailwind breakpoints
 - Add hover and focus states for interactive elements
 
-### TailwindCSS Guidelines
-
-**CRITICAL**: The `@apply` at-rule is completely forbidden in this project. Instead, create custom components with the desired className and wrap elements where that style should be applied.
-
-The `@apply` directive is non-standard CSS and goes against the component-driven design philosophy of Tailwind. It creates implicit dependencies and makes styles harder to trace and maintain. This project uses pure CSS with CSS custom properties for any global styles.
-
-**✅ Correct - Component-based approach:**
-```tsx
-// Create a custom component
-function PrimaryButton({ children, className, ...props }: ButtonProps) {
-  return (
-    <button
-      className={cn("bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded", className)}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
-// Use the component
-<PrimaryButton>Click me</PrimaryButton>
-```
-
-**❌ Wrong - Using @apply:**
-```css
-.primary-button {
-  @apply bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded;
-}
-```
-
-This approach:
-- Keeps styles co-located with components
-- Makes styling explicit and traceable
-- Follows React component patterns
-- Enables better TypeScript integration
-- Supports proper className composition with `cn()`
-
 ## Writing Tests vs Running Tests
 
 There is an important distinction between **writing new tests** and **running existing tests**:
