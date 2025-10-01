@@ -383,71 +383,7 @@ function usePosts() {
 }
 ```
 
-### Infinite Scroll for Feeds
-
-For feed-like interfaces, implement infinite scroll using TanStack Query's `useInfiniteQuery` with Nostr's timestamp-based pagination:
-
-```typescript
-import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
-
-export function useGlobalFeed() {
-  const { nostr } = useNostr();
-
-  return useInfiniteQuery({
-    queryKey: ['global-feed'],
-    queryFn: async ({ pageParam, signal }) => {
-      const filter = { kinds: [1], limit: 20 };
-      if (pageParam) filter.until = pageParam;
-
-      const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(1500)])
-      });
-
-      return events;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.length === 0) return undefined;
-      return lastPage[lastPage.length - 1].created_at - 1; // Subtract 1 since 'until' is inclusive
-    },
-    initialPageParam: undefined,
-  });
-}
-```
-
-Example usage with intersection observer for automatic loading:
-
-```tsx
-import { useInView } from 'react-intersection-observer';
-
-function GlobalFeed() {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useGlobalFeed();
-  const { ref, inView } = useInView();
-
-  useEffect(() => {
-    if (inView && hasNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, fetchNextPage]);
-
-  const posts = data?.pages.flat() || [];
-
-  return (
-    <div className="space-y-4">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
-      ))}
-      {hasNextPage && (
-        <div ref={ref} className="py-4">
-          {isFetchingNextPage && <Skeleton className="h-20 w-full" />}
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-#### Efficient Query Design
+### Efficient Query Design
 
 **Critical**: Always minimize the number of separate queries to avoid rate limiting and improve performance. Combine related queries whenever possible.
 
@@ -487,7 +423,7 @@ const [notes, reposts, genericReposts] = await Promise.all([
 
 The data may be transformed into a more appropriate format if needed, and multiple calls to `nostr.query()` may be made in a single queryFn.
 
-#### Event Validation
+### Event Validation
 
 When querying events, if the event kind being returned has required tags or required JSON fields in the content, the events should be filtered through a validator function. This is not generally needed for kinds such as 1, where all tags are optional and the content is freeform text, but is especially useful for custom kinds as well as kinds with strict requirements.
 
@@ -558,7 +494,7 @@ function Post({ event }: { event: NostrEvent }) {
 }
 ```
 
-#### `NostrMetadata` type
+### `NostrMetadata` type
 
 ```ts
 /** Kind 0 metadata. */
@@ -861,61 +797,6 @@ export function Post(/* ...props */) {
     </CardContent>
   );
 }
-```
-
-### Adding Comments Sections
-
-The project includes a complete commenting system using NIP-22 (kind 1111) comments that can be added to any Nostr event or URL. The `CommentsSection` component provides a full-featured commenting interface with threaded replies, user authentication, and real-time updates.
-
-#### Basic Usage
-
-```tsx
-import { CommentsSection } from "@/components/comments/CommentsSection";
-
-function ArticlePage({ article }: { article: NostrEvent }) {
-  return (
-    <div className="space-y-6">
-      {/* Your article content */}
-      <div>{/* article content */}</div>
-
-      {/* Comments section */}
-      <CommentsSection root={article} />
-    </div>
-  );
-}
-```
-
-#### Props and Customization
-
-The `CommentsSection` component accepts the following props:
-
-- **`root`** (required): The root event or URL to comment on. Can be a `NostrEvent` or `URL` object.
-- **`title`**: Custom title for the comments section (default: "Comments")
-- **`emptyStateMessage`**: Message shown when no comments exist (default: "No comments yet")
-- **`emptyStateSubtitle`**: Subtitle for empty state (default: "Be the first to share your thoughts!")
-- **`className`**: Additional CSS classes for styling
-- **`limit`**: Maximum number of comments to load (default: 500)
-
-```tsx
-<CommentsSection
-  root={event}
-  title="Discussion"
-  emptyStateMessage="Start the conversation"
-  emptyStateSubtitle="Share your thoughts about this post"
-  className="mt-8"
-  limit={100}
-/>
-```
-
-#### Commenting on URLs
-
-The comments system also supports commenting on external URLs, making it useful for web pages, articles, or any online content:
-
-```tsx
-<CommentsSection
-  root={new URL("https://example.com/article")}
-  title="Comments on this article"
-/>
 ```
 
 ## App Configuration
