@@ -15,6 +15,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
 
 ## Project Structure
 
+- `/docs/`: Specialized documentation for implementation patterns and features
 - `/src/components/`: UI components including NostrProvider for Nostr integration
   - `/src/components/ui/`: shadcn/ui components (48+ components available)
   - `/src/components/auth/`: Authentication-related components (LoginArea, LoginDialog, etc.)
@@ -97,6 +98,16 @@ The project uses shadcn/ui components located in `@/components/ui`. These are un
 - **Tooltip**: Informational text that appears on hover
 
 These components follow a consistent pattern using React's `forwardRef` and use the `cn()` utility for class name merging. Many are built on Radix UI primitives for accessibility and customized with Tailwind CSS.
+
+## Documentation
+
+The project includes a **`docs/`** directory containing specialized documentation for specific implementation tasks. You are encouraged to add new documentation files to help future development.
+
+- **`docs/AI_CHAT.md`**: Read when building any AI-powered chat interfaces, implementing streaming responses, or integrating with the Shakespeare API.
+
+- **`docs/NOSTR_COMMENTS.md`**: Read when implementing comment systems, adding discussion features to posts/articles, or building community interaction features.
+
+- **`docs/NOSTR_INFINITE_SCROLL.md`**: Read when building feed interfaces, implementing pagination for Nostr events, or creating social media-style infinite scroll experiences.
 
 ## System Prompt Management
 
