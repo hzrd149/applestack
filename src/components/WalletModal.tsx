@@ -29,6 +29,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/hooks/useToast';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { NWCConnection, NWCInfo } from '@/hooks/useNWC';
+import type { WebLNProvider } from "@webbtc/webln-types";
 
 interface WalletModalProps {
   children?: React.ReactNode;
@@ -68,7 +69,7 @@ AddWalletContent.displayName = 'AddWalletContent';
 
 // Extracted WalletContent to prevent re-renders
 const WalletContent = forwardRef<HTMLDivElement, {
-  webln: import('@webbtc/webln-types').WebLNProvider | null;
+  webln: WebLNProvider | null;
   hasNWC: boolean;
   connections: NWCConnection[];
   connectionInfo: Record<string, NWCInfo>;
