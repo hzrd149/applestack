@@ -33,6 +33,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Event } from 'nostr-tools';
 import QRCode from 'qrcode';
+import type { WebLNProvider } from "@webbtc/webln-types";
 
 interface ZapDialogProps {
   target: Event;
@@ -55,7 +56,7 @@ interface ZapContentProps {
   isZapping: boolean;
   qrCodeUrl: string;
   copied: boolean;
-  webln: import('@webbtc/webln-types').WebLNProvider | null;
+  webln: WebLNProvider | null;
   handleZap: () => void;
   handleCopy: () => void;
   openInWallet: () => void;
