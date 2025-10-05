@@ -68,7 +68,7 @@ AddWalletContent.displayName = 'AddWalletContent';
 
 // Extracted WalletContent to prevent re-renders
 const WalletContent = forwardRef<HTMLDivElement, {
-  hasWebLN: boolean;
+  webln: import('@webbtc/webln-types').WebLNProvider | null;
   hasNWC: boolean;
   connections: NWCConnection[];
   connectionInfo: Record<string, NWCInfo>;
@@ -77,7 +77,7 @@ const WalletContent = forwardRef<HTMLDivElement, {
   handleRemoveConnection: (cs: string) => void;
   setAddDialogOpen: (open: boolean) => void;
 }>(({
-  hasWebLN,
+  webln,
   hasNWC,
   connections,
   connectionInfo,
@@ -101,9 +101,9 @@ const WalletContent = forwardRef<HTMLDivElement, {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {hasWebLN && <CheckCircle className="h-4 w-4 text-green-600" />}
-            <Badge variant={hasWebLN ? "default" : "secondary"} className="text-xs">
-              {hasWebLN ? "Ready" : "Not Found"}
+            {webln && <CheckCircle className="h-4 w-4 text-green-600" />}
+            <Badge variant={webln ? "default" : "secondary"} className="text-xs">
+              {webln ? "Ready" : "Not Found"}
             </Badge>
           </div>
         </div>
@@ -189,7 +189,7 @@ const WalletContent = forwardRef<HTMLDivElement, {
       )}
     </div>
     {/* Help */}
-    {!hasWebLN && connections.length === 0 && (
+    {!webln && connections.length === 0 && (
       <>
         <Separator />
         <div className="text-center py-4 space-y-2">
@@ -220,7 +220,7 @@ export function WalletModal({ children, className }: WalletModalProps) {
     setActiveConnection
   } = useNWC();
 
-  const { hasWebLN } = useWallet();
+  const { webln } = useWallet();
 
   const hasNWC = connections.length > 0 && connections.some(c => c.isConnected);
   const { toast } = useToast();
@@ -261,7 +261,7 @@ export function WalletModal({ children, className }: WalletModalProps) {
   };
 
   const walletContentProps = {
-    hasWebLN,
+    webln,
     hasNWC,
     connections,
     connectionInfo,

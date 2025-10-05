@@ -97,7 +97,7 @@ async function createNIP98Token(
     tags,
     created_at: Math.floor(Date.now() / 1000)
   });
-  
+
   // Return the token (base64 encoded event)
   return btoa(JSON.stringify(event));
 }
@@ -122,7 +122,7 @@ async function handleAPIError(response: Response) {
         }
       }
       throw new Error(`Invalid request: ${error.error?.message || error.details || error.error || 'Please check your request parameters.'}`);
-    } catch (parseError) {
+    } catch {
       throw new Error('Invalid request. Please check your parameters and try again.');
     }
   } else if (response.status === 404) {
@@ -133,7 +133,7 @@ async function handleAPIError(response: Response) {
     try {
       const errorData = await response.json();
       throw new Error(`API error: ${errorData.error?.message || errorData.details || errorData.error || response.statusText}`);
-    } catch (parseError) {
+    } catch {
       throw new Error(`Network error: ${response.statusText}. Please check your connection and try again.`);
     }
   }
@@ -151,7 +151,7 @@ export function useShakespeare() {
 
   // Chat completion function
   const sendChatMessage = useCallback(async (
-    messages: ChatMessage[], 
+    messages: ChatMessage[],
     model: string = 'shakespeare',
     options?: Partial<ChatCompletionRequest>
   ): Promise<ChatCompletionResponse> => {
@@ -189,20 +189,20 @@ export function useShakespeare() {
       return await response.json();
     } catch (err) {
       let errorMessage = 'An unexpected error occurred';
-      
+
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
-      
+
       // Add context for common issues
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
         errorMessage = 'Network error: Please check your internet connection and try again.';
       } else if (errorMessage.includes('signer')) {
         errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
       }
-      
+
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -212,7 +212,7 @@ export function useShakespeare() {
 
   // Streaming chat completion function
   const sendStreamingMessage = useCallback(async (
-    messages: ChatMessage[], 
+    messages: ChatMessage[],
     model: string = 'shakespeare',
     onChunk: (chunk: string) => void,
     options?: Partial<ChatCompletionRequest>
@@ -269,7 +269,7 @@ export function useShakespeare() {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') return;
-              
+
               try {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
@@ -287,20 +287,20 @@ export function useShakespeare() {
       }
     } catch (err) {
       let errorMessage = 'An unexpected error occurred';
-      
+
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
-      
+
       // Add context for common issues
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
         errorMessage = 'Network error: Please check your internet connection and try again.';
       } else if (errorMessage.includes('signer')) {
         errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
       }
-      
+
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -336,20 +336,20 @@ export function useShakespeare() {
       return await response.json();
     } catch (err) {
       let errorMessage = 'An unexpected error occurred';
-      
+
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
-      
+
       // Add context for common issues
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
         errorMessage = 'Network error: Please check your internet connection and try again.';
       } else if (errorMessage.includes('signer')) {
         errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
       }
-      
+
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -362,7 +362,7 @@ export function useShakespeare() {
     isLoading,
     error,
     isAuthenticated: !!user,
-    
+
     // Actions
     sendChatMessage,
     sendStreamingMessage,

@@ -55,7 +55,7 @@ interface ZapContentProps {
   isZapping: boolean;
   qrCodeUrl: string;
   copied: boolean;
-  hasWebLN: boolean;
+  webln: import('@webbtc/webln-types').WebLNProvider | null;
   handleZap: () => void;
   handleCopy: () => void;
   openInWallet: () => void;
@@ -73,7 +73,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
   isZapping,
   qrCodeUrl,
   copied,
-  hasWebLN,
+  webln,
   handleZap,
   handleCopy,
   openInWallet,
@@ -138,7 +138,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
 
           {/* Payment buttons */}
           <div className="space-y-3 mt-4">
-            {hasWebLN && (
+            {webln && (
               <Button
                 onClick={() => {
                   const finalAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
@@ -239,7 +239,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { user } = useCurrentUser();
   const { data: author } = useAuthor(target.pubkey);
   const { toast } = useToast();
-  const { webln, activeNWC, hasWebLN } = useWallet();
+  const { webln, activeNWC } = useWallet();
   const { zap, isZapping, invoice, setInvoice } = useZaps(target, webln, activeNWC, () => setOpen(false));
   const [amount, setAmount] = useState<number | string>(100);
   const [comment, setComment] = useState<string>('');
@@ -337,7 +337,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     isZapping,
     qrCodeUrl,
     copied,
-    hasWebLN,
+    webln,
     handleZap,
     handleCopy,
     openInWallet,
