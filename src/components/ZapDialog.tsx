@@ -234,13 +234,12 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
 ));
 ZapContent.displayName = 'ZapContent';
 
-
 export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const [open, setOpen] = useState(false);
   const { user } = useCurrentUser();
   const { data: author } = useAuthor(target.pubkey);
   const { toast } = useToast();
-  const { webln, activeNWC, hasWebLN, detectWebLN } = useWallet();
+  const { webln, activeNWC, hasWebLN } = useWallet();
   const { zap, isZapping, invoice, setInvoice } = useZaps(target, webln, activeNWC, () => setOpen(false));
   const [amount, setAmount] = useState<number | string>(100);
   const [comment, setComment] = useState<string>('');
@@ -254,13 +253,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setComment('Zapped with MKStack!');
     }
   }, [target]);
-
-  // Detect WebLN when dialog opens
-  useEffect(() => {
-    if (open && !hasWebLN) {
-      detectWebLN();
-    }
-  }, [open, hasWebLN, detectWebLN]);
 
   // Generate QR code
   useEffect(() => {

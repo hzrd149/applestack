@@ -69,7 +69,6 @@ AddWalletContent.displayName = 'AddWalletContent';
 // Extracted WalletContent to prevent re-renders
 const WalletContent = forwardRef<HTMLDivElement, {
   hasWebLN: boolean;
-  isDetecting: boolean;
   hasNWC: boolean;
   connections: NWCConnection[];
   connectionInfo: Record<string, NWCInfo>;
@@ -79,7 +78,6 @@ const WalletContent = forwardRef<HTMLDivElement, {
   setAddDialogOpen: (open: boolean) => void;
 }>(({
   hasWebLN,
-  isDetecting,
   hasNWC,
   connections,
   connectionInfo,
@@ -105,7 +103,7 @@ const WalletContent = forwardRef<HTMLDivElement, {
           <div className="flex items-center gap-2">
             {hasWebLN && <CheckCircle className="h-4 w-4 text-green-600" />}
             <Badge variant={hasWebLN ? "default" : "secondary"} className="text-xs">
-              {isDetecting ? "..." : hasWebLN ? "Ready" : "Not Found"}
+              {hasWebLN ? "Ready" : "Not Found"}
             </Badge>
           </div>
         </div>
@@ -222,7 +220,7 @@ export function WalletModal({ children, className }: WalletModalProps) {
     setActiveConnection
   } = useNWC();
 
-  const { hasWebLN, isDetecting } = useWallet();
+  const { hasWebLN } = useWallet();
 
   const hasNWC = connections.length > 0 && connections.some(c => c.isConnected);
   const { toast } = useToast();
@@ -264,7 +262,6 @@ export function WalletModal({ children, className }: WalletModalProps) {
 
   const walletContentProps = {
     hasWebLN,
-    isDetecting,
     hasNWC,
     connections,
     connectionInfo,
