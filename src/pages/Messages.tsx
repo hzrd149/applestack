@@ -21,7 +21,7 @@ const Messages = () => {
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { clearCache } = useDMContext();
+  const { clearCacheAndReload } = useDMContext();
 
   useSeoMeta({
     title: 'Messages',
@@ -66,7 +66,7 @@ const Messages = () => {
                   View loading status, cache info, and connection details
                 </DialogDescription>
               </DialogHeader>
-              <DMStatusInfo clearCache={clearCache} />
+              <DMStatusInfo clearCacheAndReload={clearCacheAndReload} />
             </DialogContent>
           </Dialog>
         </div>

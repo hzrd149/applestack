@@ -9,10 +9,10 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/useToast';
 
 interface DMStatusInfoProps {
-  clearCache?: () => Promise<void>;
+  clearCacheAndReload?: () => Promise<void>;
 }
 
-export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
+export const DMStatusInfo = ({ clearCacheAndReload }: DMStatusInfoProps) => {
   const [isClearing, setIsClearing] = useState(false);
   const { toast } = useToast();
   const {
@@ -25,19 +25,16 @@ export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
   } = useDMContext();
 
   const handleClearCache = async () => {
-    if (!clearCache) return;
+    if (!clearCacheAndReload) return;
     
     setIsClearing(true);
     try {
-      await clearCache();
+      await clearCacheAndReload();
       toast({
         title: 'Cache cleared',
-        description: 'All cached messages have been removed. Reloading...',
+        description: 'Reloading messages from relays...',
       });
-      // Give user time to see the toast
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      setIsClearing(false);
     } catch (error) {
       console.error('Error clearing cache:', error);
       toast({
@@ -180,7 +177,7 @@ export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
       </Card>
 
       {/* Actions */}
-      {clearCache && (
+      {clearCacheAndReload && (
         <>
           <Separator />
           <div className="space-y-3">

@@ -122,7 +122,7 @@ interface DMContextType {
   sendMessage: (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => Promise<void>;
   isNIP17Enabled: boolean;
   scanProgress: ScanProgressState;
-  clearCache: () => Promise<void>;
+  clearCacheAndReload: () => Promise<void>;
 }
 
 const DMContext = createContext<DMContextType | null>(null);
@@ -1073,12 +1073,33 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     }
   }, [userPubkey, addMessageToState, sendNIP4Message, sendNIP17Message]);
 
-  const clearCache = useCallback(async () => {
+  const clearCacheAndReload = useCallback(async () => {
     if (!userPubkey) return;
 
     try {
+      // Close existing subscriptions
+      if (nip4SubscriptionRef.current) {
+        nip4SubscriptionRef.current.close();
+        nip4SubscriptionRef.current = null;
+      }
+      if (nip17SubscriptionRef.current) {
+        nip17SubscriptionRef.current.close();
+        nip17SubscriptionRef.current = null;
+      }
+
+      // Clear IndexedDB cache
       const { deleteMessagesFromDB } = await import('@/lib/dmMessageStore');
       await deleteMessagesFromDB(userPubkey);
+
+      // Reset all state
+      setMessages(new Map());
+      setLastSync({ nip4: null, nip17: null });
+      setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
+      setScanProgress({ nip4: null, nip17: null });
+      setLoadingPhase(LOADING_PHASES.IDLE);
+      
+      // Trigger reload by setting hasInitialLoadCompleted to false
+      setHasInitialLoadCompleted(false);
     } catch (error) {
       console.error('[DM] Error clearing cache:', error);
       throw error;
@@ -1098,7 +1119,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     isNIP17Enabled: enableNIP17,
     scanProgress,
     subscriptions,
-    clearCache,
+    clearCacheAndReload,
   };
 
   return (
