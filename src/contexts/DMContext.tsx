@@ -597,11 +597,13 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
 
         updatedMessages.sort((a, b) => a.created_at - b.created_at);
 
+        const actualLastMessage = updatedMessages[updatedMessages.length - 1];
+
         newMap.set(conversationPartner, {
           ...existing,
           messages: updatedMessages,
-          lastActivity: message.created_at,
-          lastMessage: message,
+          lastActivity: actualLastMessage.created_at,
+          lastMessage: actualLastMessage,
           hasNIP4: protocol === MESSAGE_PROTOCOL.NIP04 ? true : existing.hasNIP4,
           hasNIP17: protocol === MESSAGE_PROTOCOL.NIP17 ? true : existing.hasNIP17,
         });
