@@ -74,7 +74,7 @@ function createImetaTags(attachments: FileAttachment[] = []): string[][] {
 
 export function useSendDM(): UseSendDMReturn {
   const { user } = useCurrentUser();
-  const { mutate: createEvent } = useNostrPublish();
+  const { mutateAsync: createEvent } = useNostrPublish();
   const { toast } = useToast();
 
   // Send NIP-04 Message
@@ -101,18 +101,10 @@ export function useSendDM(): UseSendDMReturn {
       ];
 
       // Create and publish the event
-      return new Promise((resolve, reject) => {
-        createEvent(
-          {
-            kind: 4,
-            content: encryptedContent,
-            tags,
-          },
-          {
-            onSuccess: (event) => resolve(event),
-            onError: (error) => reject(error),
-          }
-        );
+      return await createEvent({
+        kind: 4,
+        content: encryptedContent,
+        tags,
       });
     },
     onError: (error) => {
@@ -182,36 +174,19 @@ export function useSendDM(): UseSendDMReturn {
       const recipientGiftWrapContent = await user.signer.nip44.encrypt(recipientPubkey, JSON.stringify(recipientSeal));
       const myGiftWrapContent = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(senderSeal));
 
-      const recipientGiftWrapPromise = new Promise<NostrEvent>((resolve, reject) => {
-        createEvent(
-          {
-            kind: 1059,
-            content: recipientGiftWrapContent,
-            tags: [['p', recipientPubkey]],
-          },
-          {
-            onSuccess: (event) => resolve(event),
-            onError: (error) => reject(error),
-          }
-        );
-      });
-
-      const myGiftWrapPromise = new Promise<NostrEvent>((resolve, reject) => {
-        createEvent(
-          {
-            kind: 1059,
-            content: myGiftWrapContent,
-            tags: [['p', user.pubkey]],
-          },
-          {
-            onSuccess: (event) => resolve(event),
-            onError: (error) => reject(error),
-          }
-        );
-      });
-
-      // Wait for both gift wraps to be published
-      const [recipientGiftWrap] = await Promise.all([recipientGiftWrapPromise, myGiftWrapPromise]);
+      // Publish both gift wraps in parallel
+      const [recipientGiftWrap] = await Promise.all([
+        createEvent({
+          kind: 1059,
+          content: recipientGiftWrapContent,
+          tags: [['p', recipientPubkey]],
+        }),
+        createEvent({
+          kind: 1059,
+          content: myGiftWrapContent,
+          tags: [['p', user.pubkey]],
+        }),
+      ]);
 
       // Return the recipient's gift wrap as the "result"
       return recipientGiftWrap;
