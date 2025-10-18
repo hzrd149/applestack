@@ -440,6 +440,9 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
         );
         return { lastMessageTimestamp: newestMessage.created_at, messageCount: messages.length };
       } else {
+        // No new messages, but we still successfully queried relays - update lastSync
+        const currentTime = Math.floor(Date.now() / 1000);
+        setLastSync(prev => ({ ...prev, nip4: currentTime }));
         return { lastMessageTimestamp: sinceTimestamp, messageCount: 0 };
       }
     } else if (protocol === MESSAGE_PROTOCOL.NIP17) {
@@ -484,6 +487,9 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
         );
         return { lastMessageTimestamp: newestMessage.created_at, messageCount: messages.length };
       } else {
+        // No new messages, but we still successfully queried relays - update lastSync
+        const currentTime = Math.floor(Date.now() / 1000);
+        setLastSync(prev => ({ ...prev, nip17: currentTime }));
         return { lastMessageTimestamp: sinceTimestamp, messageCount: 0 };
       }
     }
