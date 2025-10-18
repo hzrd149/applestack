@@ -74,7 +74,6 @@ interface DecryptedMessage extends NostrEvent {
 interface NIP17ProcessingResult {
   processedMessage: DecryptedMessage;
   conversationPartner: string;
-  error?: string;
 }
 
 const DM_CONSTANTS = {
@@ -344,11 +343,11 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
                   } as NostrEvent & { decryptedContent?: string; error?: string };
                 }
               } else if (msg.kind === 1059) {
-                const { processedMessage, error } = await processNIP17GiftWrap(msg);
+                const { processedMessage } = await processNIP17GiftWrap(msg);
                 return {
                   ...msg,
                   decryptedContent: processedMessage.decryptedContent,
-                  error: error,
+                  error: processedMessage.error,
                 } as NostrEvent & { decryptedContent?: string; error?: string };
               }
               return msg;
