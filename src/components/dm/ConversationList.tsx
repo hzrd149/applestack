@@ -14,7 +14,7 @@ interface ConversationListProps {
   className?: string;
 }
 
-function ConversationItem({ 
+const ConversationItem = ({ 
   pubkey, 
   isSelected, 
   onClick,
@@ -28,7 +28,7 @@ function ConversationItem({
   lastMessage: { decryptedContent?: string; error?: string } | null;
   lastActivity: number;
   hasNIP17Messages: boolean;
-}) {
+}) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
 
@@ -88,9 +88,9 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+};
 
-function ConversationListSkeleton() {
+const ConversationListSkeleton = () => {
   return (
     <div className="space-y-2 p-4">
       {[1, 2, 3, 4, 5].map((i) => (
@@ -107,9 +107,9 @@ function ConversationListSkeleton() {
       ))}
     </div>
   );
-}
+};
 
-export function ConversationList({ 
+export const ConversationList = ({ 
   selectedPubkey, 
   onSelectConversation,
   className 
@@ -161,5 +161,4 @@ export function ConversationList({
       </ScrollArea>
     </Card>
   );
-}
-
+};

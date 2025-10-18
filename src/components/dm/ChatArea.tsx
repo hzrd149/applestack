@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,7 +19,7 @@ interface ChatAreaProps {
   className?: string;
 }
 
-function MessageBubble({ 
+const MessageBubble = ({ 
   message, 
   isFromCurrentUser 
 }: { 
@@ -32,7 +31,7 @@ function MessageBubble({
     isSending?: boolean;
   };
   isFromCurrentUser: boolean;
-}) {
+}) => {
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -67,9 +66,9 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+};
 
-function ChatHeader({ pubkey, onBack }: { pubkey: string; onBack?: () => void }) {
+const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void }) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
 
@@ -103,9 +102,9 @@ function ChatHeader({ pubkey, onBack }: { pubkey: string; onBack?: () => void })
       </div>
     </div>
   );
-}
+};
 
-function EmptyState() {
+const EmptyState = () => {
   return (
     <div className="h-full flex items-center justify-center p-8">
       <div className="text-center text-muted-foreground max-w-sm">
@@ -116,35 +115,9 @@ function EmptyState() {
       </div>
     </div>
   );
-}
+};
 
-function ChatAreaSkeleton() {
-  return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-full" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-      </div>
-      
-      <div className="flex-1 p-4 space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className={cn("flex", i % 2 === 0 ? "justify-end" : "justify-start")}>
-            <Skeleton className="h-16 w-64 rounded-lg" />
-          </div>
-        ))}
-      </div>
-      
-      <div className="p-4 border-t">
-        <Skeleton className="h-20 w-full" />
-      </div>
-    </div>
-  );
-}
-
-export function ChatArea({ pubkey, onBack, className }: ChatAreaProps) {
+export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
   const { user } = useCurrentUser();
   const { sendMessage, isNIP17Enabled } = useDMContext();
   const { messages, totalCount } = useConversationMessages(pubkey || '');
@@ -268,5 +241,4 @@ export function ChatArea({ pubkey, onBack, className }: ChatAreaProps) {
       </div>
     </Card>
   );
-}
-
+};

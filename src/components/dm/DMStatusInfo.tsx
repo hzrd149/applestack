@@ -105,12 +105,12 @@ export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
       </Card>
 
       {/* Scan Progress */}
-      {(scanProgress.nip4 || scanProgress.nip17) && (
+      {(scanProgress.nip4 !== null || scanProgress.nip17 !== null) && (
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-3">
               <p className="text-sm font-medium">Scanning Messages</p>
-              {scanProgress.nip4 && (
+              {scanProgress.nip4 !== null && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">NIP-4 (Legacy)</span>
@@ -119,7 +119,7 @@ export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
                   <p className="text-xs text-muted-foreground">{scanProgress.nip4.status}</p>
                 </div>
               )}
-              {scanProgress.nip17 && (
+              {scanProgress.nip17 !== null && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">NIP-17 (Private)</span>
@@ -141,14 +141,14 @@ export const DMStatusInfo = ({ clearCache }: DMStatusInfoProps) => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">NIP-4 (Legacy DMs)</span>
-                <Badge variant={subscriptions.nip4 ? 'default' : 'secondary'}>
-                  {subscriptions.nip4 ? 'Connected' : 'Disconnected'}
+                <Badge variant={subscriptions.isNIP4Connected ? 'default' : 'secondary'}>
+                  {subscriptions.isNIP4Connected ? 'Connected' : 'Disconnected'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">NIP-17 (Private DMs)</span>
-                <Badge variant={subscriptions.nip17 ? 'default' : 'secondary'}>
-                  {subscriptions.nip17 ? 'Connected' : 'Disconnected'}
+                <Badge variant={subscriptions.isNIP17Connected ? 'default' : 'secondary'}>
+                  {subscriptions.isNIP17Connected ? 'Connected' : 'Disconnected'}
                 </Badge>
               </div>
             </div>

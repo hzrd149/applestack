@@ -28,8 +28,8 @@ interface LastSyncData {
 }
 
 interface SubscriptionStatus {
-  nip4: boolean;
-  nip17: boolean;
+  isNIP4Connected: boolean;
+  isNIP17Connected: boolean;
 }
 
 interface ScanProgress {
@@ -181,8 +181,8 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>(LOADING_PHASES.IDLE);
   const [subscriptions, setSubscriptions] = useState<SubscriptionStatus>({
-    nip4: false,
-    nip17: false
+    isNIP4Connected: false,
+    isNIP17Connected: false
   });
   const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false);
   const [shouldSaveImmediately, setShouldSaveImmediately] = useState(false);
@@ -797,10 +797,10 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
         }
       };
 
-      setSubscriptions(prev => ({ ...prev, nip4: true }));
+      setSubscriptions(prev => ({ ...prev, isNIP4Connected: true }));
     } catch (error) {
       console.error('[DM] Failed to start NIP-4 subscription:', error);
-      setSubscriptions(prev => ({ ...prev, nip4: false }));
+      setSubscriptions(prev => ({ ...prev, isNIP4Connected: false }));
     }
   }, [user, nostr, lastSync.nip4, processIncomingNIP4Message]);
 
@@ -848,10 +848,10 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
         }
       };
 
-      setSubscriptions(prev => ({ ...prev, nip17: true }));
+      setSubscriptions(prev => ({ ...prev, isNIP17Connected: true }));
     } catch (error) {
       console.error('[DM] Failed to start NIP-17 subscription:', error);
-      setSubscriptions(prev => ({ ...prev, nip17: false }));
+      setSubscriptions(prev => ({ ...prev, isNIP17Connected: false }));
     }
   }, [user, nostr, lastSync.nip17, enableNIP17, processIncomingNIP17Message]);
 
@@ -929,7 +929,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
       if (debouncedWriteRef.current) {
         clearTimeout(debouncedWriteRef.current);
       }
-      setSubscriptions({ nip4: false, nip17: false });
+      setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
     };
   }, []);
 
