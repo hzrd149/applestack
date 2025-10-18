@@ -113,7 +113,7 @@ export const ConversationList = ({
   selectedPubkey, 
   onSelectConversation,
   className 
-}: ConversationListProps) {
+}: ConversationListProps) => {
   const { conversations, isLoading } = useDMContext();
 
   if (isLoading) {
