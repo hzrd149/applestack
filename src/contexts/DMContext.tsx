@@ -80,7 +80,7 @@ interface NIP17ProcessingResult {
 const DM_CONSTANTS = {
   DEBOUNCED_WRITE_DELAY: 15000,
   RECENT_MESSAGE_THRESHOLD: 5000,
-  SUBSCRIPTION_OVERLAP_SECONDS: 60,
+  SUBSCRIPTION_OVERLAP_SECONDS: 10, // Overlap for subscriptions to catch race conditions
   SCAN_TOTAL_LIMIT: 20000,
   SCAN_BATCH_SIZE: 1000,
   NIP4_QUERY_TIMEOUT: 15000,
@@ -771,7 +771,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     try {
       let subscriptionSince = sinceTimestamp || Math.floor(Date.now() / 1000);
       if (!sinceTimestamp && lastSync.nip4) {
-        subscriptionSince = lastSync.nip4 - 60;
+        subscriptionSince = lastSync.nip4 - DM_CONSTANTS.SUBSCRIPTION_OVERLAP_SECONDS;
       }
 
       const filters = [
@@ -821,7 +821,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     try {
       let subscriptionSince = sinceTimestamp || Math.floor(Date.now() / 1000);
       if (!sinceTimestamp && lastSync.nip17) {
-        subscriptionSince = lastSync.nip17 - 60;
+        subscriptionSince = lastSync.nip17 - DM_CONSTANTS.SUBSCRIPTION_OVERLAP_SECONDS;
       }
 
       const filters = [{
