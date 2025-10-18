@@ -1,13 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { useDMContext } from '@/contexts/DMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface ConversationListProps {
@@ -22,14 +22,14 @@ const ConversationItem = ({
   onClick,
   lastMessage,
   lastActivity,
-  hasNIP17Messages
+  hasNIP4Messages
 }: { 
   pubkey: string; 
   isSelected: boolean; 
   onClick: () => void;
   lastMessage: { decryptedContent?: string; error?: string } | null;
   lastActivity: number;
-  hasNIP17Messages: boolean;
+  hasNIP4Messages: boolean;
 }) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
@@ -56,17 +56,17 @@ const ConversationItem = ({
 
   const lastMessagePreview = lastMessage?.error 
     ? '🔒 Encrypted message' 
-    : lastMessage?.decryptedContent?.slice(0, 30) || 'No messages yet';
+    : lastMessage?.decryptedContent || 'No messages yet';
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left p-3 rounded-lg transition-colors hover:bg-accent overflow-hidden",
+        "w-full text-left p-3 rounded-lg transition-colors hover:bg-accent block overflow-hidden",
         isSelected && "bg-accent"
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 max-w-full">
         <Avatar className="h-10 w-10 flex-shrink-0">
           <AvatarImage src={avatarUrl} alt={displayName} />
           <AvatarFallback>{initials}</AvatarFallback>
@@ -74,22 +74,31 @@ const ConversationItem = ({
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="font-medium text-sm truncate">{displayName}</span>
-            <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="font-medium text-sm truncate">{displayName}</span>
+              {hasNIP4Messages && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-500" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      <p className="text-xs max-w-[200px]">Some messages use outdated NIP-04 encryption</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
               {formatTime(lastActivity)}
             </span>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground truncate flex-1">
-              {lastMessagePreview}
-            </span>
-            {hasNIP17Messages && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
-                17
-              </Badge>
-            )}
-          </div>
+          <p className="text-sm text-muted-foreground truncate">
+            {lastMessagePreview}
+          </p>
         </div>
       </div>
     </button>
@@ -121,6 +130,7 @@ export const ConversationList = ({
   className 
 }: ConversationListProps) => {
   const { conversations, isLoading } = useDMContext();
+  const [activeTab, setActiveTab] = useState<'known' | 'requests'>('known');
 
   // Filter conversations by type
   const { knownConversations, requestConversations } = useMemo(() => {
@@ -130,33 +140,8 @@ export const ConversationList = ({
     };
   }, [conversations]);
 
-  const renderConversationList = (conversationList: typeof conversations) => {
-    if (conversationList.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-32 text-center text-muted-foreground px-4">
-          <p className="text-sm">No conversations</p>
-        </div>
-      );
-    }
-
-    return (
-      <ScrollArea className="flex-1 h-full">
-        <div className="px-2 py-2 space-y-1 w-full">
-          {conversationList.map((conversation) => (
-            <ConversationItem
-              key={conversation.pubkey}
-              pubkey={conversation.pubkey}
-              isSelected={selectedPubkey === conversation.pubkey}
-              onClick={() => onSelectConversation(conversation.pubkey)}
-              lastMessage={conversation.lastMessage}
-              lastActivity={conversation.lastActivity}
-              hasNIP17Messages={conversation.hasNIP17Messages}
-            />
-          ))}
-        </div>
-      </ScrollArea>
-    );
-  };
+  // Get the current list based on active tab
+  const currentConversations = activeTab === 'known' ? knownConversations : requestConversations;
 
   if (isLoading) {
     return (
@@ -183,26 +168,58 @@ export const ConversationList = ({
         <h2 className="font-semibold text-lg">Messages</h2>
       </div>
       
-      <Tabs defaultValue="known" className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 pt-2 flex-shrink-0">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="known" className="text-xs">
-              Active {knownConversations.length > 0 && `(${knownConversations.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="text-xs">
-              Requests {requestConversations.length > 0 && `(${requestConversations.length})`}
-            </TabsTrigger>
-          </TabsList>
+      {/* Tab buttons */}
+      <div className="px-2 pt-2 flex-shrink-0">
+        <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('known')}
+            className={cn(
+              "text-xs py-2 px-3 rounded-md transition-colors",
+              activeTab === 'known' 
+                ? "bg-background shadow-sm font-medium" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Active {knownConversations.length > 0 && `(${knownConversations.length})`}
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={cn(
+              "text-xs py-2 px-3 rounded-md transition-colors",
+              activeTab === 'requests' 
+                ? "bg-background shadow-sm font-medium" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Requests {requestConversations.length > 0 && `(${requestConversations.length})`}
+          </button>
         </div>
-        
-        <TabsContent value="known" className="flex-1 mt-0 min-h-0">
-          {renderConversationList(knownConversations)}
-        </TabsContent>
-        
-        <TabsContent value="requests" className="flex-1 mt-0 min-h-0">
-          {renderConversationList(requestConversations)}
-        </TabsContent>
-      </Tabs>
+      </div>
+      
+      {/* Single shared container */}
+      <div className="flex-1 min-h-0 mt-2 overflow-hidden">
+        {currentConversations.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-center text-muted-foreground px-4">
+            <p className="text-sm">No conversations</p>
+          </div>
+        ) : (
+          <ScrollArea key={activeTab} className="h-full block">
+            <div className="block w-full px-2 py-2 space-y-1">
+              {currentConversations.map((conversation) => (
+                <ConversationItem
+                  key={conversation.pubkey}
+                  pubkey={conversation.pubkey}
+                  isSelected={selectedPubkey === conversation.pubkey}
+                  onClick={() => onSelectConversation(conversation.pubkey)}
+                  lastMessage={conversation.lastMessage}
+                  lastActivity={conversation.lastActivity}
+                  hasNIP4Messages={conversation.hasNIP4Messages}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
     </Card>
   );
 };
