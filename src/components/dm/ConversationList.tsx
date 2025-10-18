@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { useDMContext } from '@/contexts/DMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ interface ConversationListProps {
   selectedPubkey: string | null;
   onSelectConversation: (pubkey: string) => void;
   className?: string;
+  onStatusClick?: () => void;
 }
 
 const ConversationItem = ({ 
@@ -127,7 +129,8 @@ const ConversationListSkeleton = () => {
 export const ConversationList = ({ 
   selectedPubkey, 
   onSelectConversation,
-  className 
+  className,
+  onStatusClick
 }: ConversationListProps) => {
   const { conversations, isLoading } = useDMContext();
   const [activeTab, setActiveTab] = useState<'known' | 'requests'>('known');
@@ -164,8 +167,19 @@ export const ConversationList = ({
 
   return (
     <Card className={cn("h-full flex flex-col overflow-hidden", className)}>
-      <div className="p-4 border-b flex-shrink-0">
+      <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
         <h2 className="font-semibold text-lg">Messages</h2>
+        {onStatusClick && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onStatusClick}
+            aria-label="View messaging status"
+          >
+            <Info className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       
       {/* Tab buttons */}

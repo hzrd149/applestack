@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Info } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { ConversationList } from '@/components/dm/ConversationList';
 import { ChatArea } from '@/components/dm/ChatArea';
@@ -13,9 +12,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 
 const Messages = () => {
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
@@ -43,33 +40,18 @@ const Messages = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 h-screen flex flex-col">
-        {/* Header with status button */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Messages</h1>
-          
-          {/* Status Modal */}
-          <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                aria-label="View messaging status"
-              >
-                <Info className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Messaging Status</DialogTitle>
-                <DialogDescription>
-                  View loading status, cache info, and connection details
-                </DialogDescription>
-              </DialogHeader>
-              <DMStatusInfo clearCacheAndReload={clearCacheAndReload} />
-            </DialogContent>
-          </Dialog>
-        </div>
+        {/* Status Modal */}
+        <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Messaging Status</DialogTitle>
+              <DialogDescription>
+                View loading status, cache info, and connection details
+              </DialogDescription>
+            </DialogHeader>
+            <DMStatusInfo clearCacheAndReload={clearCacheAndReload} />
+          </DialogContent>
+        </Dialog>
 
         <div className="flex-1 flex gap-4 overflow-hidden">
           {/* Conversation List - Left Sidebar */}
@@ -82,6 +64,7 @@ const Messages = () => {
               selectedPubkey={selectedPubkey}
               onSelectConversation={handleSelectConversation}
               className="h-full"
+              onStatusClick={() => setStatusModalOpen(true)}
             />
           </div>
 
