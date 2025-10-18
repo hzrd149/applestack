@@ -122,6 +122,7 @@ interface DMContextType {
   sendMessage: (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => Promise<void>;
   isNIP17Enabled: boolean;
   scanProgress: ScanProgressState;
+  clearCache: () => Promise<void>;
 }
 
 const DMContext = createContext<DMContextType | null>(null);
@@ -1066,6 +1067,18 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     }
   }, [userPubkey, addMessageToState, sendNIP4Message, sendNIP17Message]);
 
+  const clearCache = useCallback(async () => {
+    if (!userPubkey) return;
+
+    try {
+      const { deleteMessagesFromDB } = await import('@/lib/dmMessageStore');
+      await deleteMessagesFromDB(userPubkey);
+    } catch (error) {
+      console.error('[DM] Error clearing cache:', error);
+      throw error;
+    }
+  }, [userPubkey]);
+
   const isDoingInitialLoad = isLoading && (loadingPhase === LOADING_PHASES.CACHE || loadingPhase === LOADING_PHASES.RELAYS);
 
   const contextValue: DMContextType = {
@@ -1079,6 +1092,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     isNIP17Enabled: enableNIP17,
     scanProgress,
     subscriptions,
+    clearCache,
   };
 
   return (
