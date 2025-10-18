@@ -10,7 +10,8 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowLeft, Send, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChatAreaProps {
@@ -25,6 +26,7 @@ const MessageBubble = ({
 }: { 
   message: {
     id: string;
+    kind: number;
     decryptedContent?: string;
     error?: string;
     created_at: number;
@@ -36,6 +38,8 @@ const MessageBubble = ({
     const date = new Date(timestamp * 1000);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const isNIP4Message = message.kind === 4;
 
   return (
     <div className={cn("flex mb-4", isFromCurrentUser ? "justify-end" : "justify-start")}>
@@ -59,6 +63,20 @@ const MessageBubble = ({
           )}>
             {formatTime(message.created_at)}
           </span>
+          {isNIP4Message && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Uses outdated NIP-04 encryption</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {message.isSending && (
             <Loader2 className="h-3 w-3 animate-spin opacity-70" />
           )}
