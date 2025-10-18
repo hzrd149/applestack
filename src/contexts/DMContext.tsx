@@ -3,7 +3,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSendDM } from '@/hooks/useSendDM';
 import { useNostr } from '@nostrify/react';
 import { validateDMEvent } from '@/lib/dmUtils';
-import { LOADING_PHASES, type LoadingPhase } from '@/lib/dmConstants';
+import { LOADING_PHASES, type LoadingPhase, PROTOCOL_MODE, type ProtocolMode } from '@/lib/dmConstants';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { MessageProtocol } from '@/lib/dmConstants';
 import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
@@ -119,7 +119,7 @@ interface DMContextType {
   subscriptions: SubscriptionStatus;
   conversations: ConversationSummary[];
   sendMessage: (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => Promise<void>;
-  isNIP17Enabled: boolean;
+  protocolMode: ProtocolMode;
   scanProgress: ScanProgressState;
   clearCacheAndReload: () => Promise<void>;
 }
@@ -162,15 +162,18 @@ export function useConversationMessages(conversationId: string) {
 
 interface DMProviderProps {
   children: ReactNode;
-  enableNIP17?: boolean;
+  protocolMode?: ProtocolMode;
 }
 
-export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
+export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }: DMProviderProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { sendNIP4Message, sendNIP17Message } = useSendDM();
 
   const userPubkey = useMemo(() => user?.pubkey, [user?.pubkey]);
+  
+  // Determine if NIP-17 is enabled based on protocol mode
+  const enableNIP17 = protocolMode !== PROTOCOL_MODE.NIP04_ONLY;
 
   const [messages, setMessages] = useState<MessagesState>(new Map());
   const [lastSync, setLastSync] = useState<LastSyncData>({
@@ -1117,7 +1120,7 @@ export function DMProvider({ children, enableNIP17 = true }: DMProviderProps) {
     lastSync,
     conversations,
     sendMessage,
-    isNIP17Enabled: enableNIP17,
+    protocolMode,
     scanProgress,
     subscriptions,
     clearCacheAndReload,

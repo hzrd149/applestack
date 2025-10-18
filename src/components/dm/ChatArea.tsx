@@ -3,13 +3,13 @@ import { useConversationMessages, useDMContext } from '@/contexts/DMContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
-import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
+import { MESSAGE_PROTOCOL, PROTOCOL_MODE, type MessageProtocol } from '@/lib/dmConstants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Send, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -137,12 +137,26 @@ const EmptyState = () => {
 
 export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
   const { user } = useCurrentUser();
-  const { sendMessage, isNIP17Enabled } = useDMContext();
-  const { messages, totalCount } = useConversationMessages(pubkey || '');
+  const { sendMessage, protocolMode } = useDMContext();
+  const { messages } = useConversationMessages(pubkey || '');
   
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  
+  // Determine default protocol based on mode
+  const getDefaultProtocol = () => {
+    if (protocolMode === PROTOCOL_MODE.NIP04_ONLY) return MESSAGE_PROTOCOL.NIP04;
+    if (protocolMode === PROTOCOL_MODE.NIP17_ONLY) return MESSAGE_PROTOCOL.NIP17;
+    if (protocolMode === PROTOCOL_MODE.NIP04_OR_NIP17) return MESSAGE_PROTOCOL.NIP17;
+    // Fallback to NIP-17 for any unexpected mode
+    return MESSAGE_PROTOCOL.NIP17;
+  };
+  
+  const [selectedProtocol, setSelectedProtocol] = useState<MessageProtocol>(getDefaultProtocol());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Determine if selection is allowed
+  const allowSelection = protocolMode === PROTOCOL_MODE.NIP04_OR_NIP17;
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -162,7 +176,7 @@ export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
       await sendMessage({
         recipientPubkey: pubkey,
         content: messageText.trim(),
-        protocol: isNIP17Enabled ? MESSAGE_PROTOCOL.NIP17 : MESSAGE_PROTOCOL.NIP04,
+        protocol: selectedProtocol,
       });
       setMessageText('');
     } catch (error) {
@@ -223,17 +237,6 @@ export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
       </ScrollArea>
       
       <div className="p-4 border-t">
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant={isNIP17Enabled ? "default" : "secondary"} className="text-xs">
-            {isNIP17Enabled ? "NIP-17 (Private)" : "NIP-04 (Legacy)"}
-          </Badge>
-          {totalCount > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {totalCount} message{totalCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        
         <div className="flex gap-2">
           <Textarea
             value={messageText}
@@ -243,18 +246,37 @@ export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
             className="min-h-[80px] resize-none"
             disabled={isSending}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!messageText.trim() || isSending}
-            size="icon"
-            className="h-[80px] w-[80px]"
-          >
-            {isSending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={handleSend}
+              disabled={!messageText.trim() || isSending}
+              size="icon"
+              className="h-[44px] w-[90px]"
+            >
+              {isSending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+            <Select
+              value={selectedProtocol}
+              onValueChange={(value) => setSelectedProtocol(value as MessageProtocol)}
+              disabled={!allowSelection}
+            >
+              <SelectTrigger className="h-[32px] w-[90px] text-xs px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={MESSAGE_PROTOCOL.NIP17} className="text-xs">
+                  NIP-17
+                </SelectItem>
+                <SelectItem value={MESSAGE_PROTOCOL.NIP04} className="text-xs">
+                  NIP-04
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </Card>

@@ -13,6 +13,18 @@ export const MESSAGE_PROTOCOL = {
 export type MessageProtocol = typeof MESSAGE_PROTOCOL[keyof typeof MESSAGE_PROTOCOL];
 
 // ============================================================================
+// Protocol Mode (for user selection)
+// ============================================================================
+
+export const PROTOCOL_MODE = {
+  NIP04_ONLY: 'nip04_only',
+  NIP17_ONLY: 'nip17_only',
+  NIP04_OR_NIP17: 'nip04_or_nip17',
+} as const;
+
+export type ProtocolMode = typeof PROTOCOL_MODE[keyof typeof PROTOCOL_MODE];
+
+// ============================================================================
 // Loading Phases
 // ============================================================================
 
