@@ -2,7 +2,9 @@ import { useMutation, type UseMutationResult } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
+import { NSecSigner, type NostrEvent } from '@nostrify/nostrify';
+import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 // ============================================================================
 // Types
@@ -75,6 +77,7 @@ function createImetaTags(attachments: FileAttachment[] = []): string[][] {
 export function useSendDM(): UseSendDMReturn {
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
+  const { nostr } = useNostr();
   const { toast } = useToast();
 
   // Send NIP-04 Message
@@ -166,29 +169,37 @@ export function useSendDM(): UseSendDMReturn {
       };
 
       // Step 3: Create TWO Kind 1059 Gift Wrap events
-      // NOTE: This implementation uses the user's key for signing.
-      // todo: For maximum privacy, this should use a random key (see NIP-59).
-      // That fix will be implemented separately.
+      // Per NIP-17/NIP-59: Gift wraps MUST be signed with random, ephemeral keys
+      // to hide the sender's identity and provide - some - metadata privacy
       
-      // Encrypt the seals first
-      const recipientGiftWrapContent = await user.signer.nip44.encrypt(recipientPubkey, JSON.stringify(recipientSeal));
-      const myGiftWrapContent = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(senderSeal));
+      // Create random signers for each gift wrap
+      const recipientRandomSigner = new NSecSigner(generateSecretKey());
+      const senderRandomSigner = new NSecSigner(generateSecretKey());
 
-      // Publish both gift wraps in parallel
-      const [recipientGiftWrap] = await Promise.all([
-        createEvent({
+      // Sign both gift wraps with random keys
+      const [recipientGiftWrap, senderGiftWrap] = await Promise.all([
+        recipientRandomSigner.sign({
           kind: 1059,
-          content: recipientGiftWrapContent,
+          pubkey: getPublicKey(recipientRandomSigner.privateKey),
+          created_at: now,
           tags: [['p', recipientPubkey]],
+          content: await recipientRandomSigner.nip44!.encrypt(recipientPubkey, JSON.stringify(recipientSeal)),
         }),
-        createEvent({
+        senderRandomSigner.sign({
           kind: 1059,
-          content: myGiftWrapContent,
+          pubkey: getPublicKey(senderRandomSigner.privateKey),
+          created_at: now,
           tags: [['p', user.pubkey]],
+          content: await senderRandomSigner.nip44!.encrypt(user.pubkey, JSON.stringify(senderSeal)),
         }),
       ]);
 
-      // Return the recipient's gift wrap as the "result"
+      // Publish both to relays
+      await Promise.all([
+        nostr.event(recipientGiftWrap),
+        nostr.event(senderGiftWrap),
+      ]);
+
       return recipientGiftWrap;
     },
     onError: (error) => {
