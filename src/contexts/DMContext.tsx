@@ -163,9 +163,10 @@ export function useConversationMessages(conversationId: string) {
 interface DMProviderProps {
   children: ReactNode;
   protocolMode?: ProtocolMode;
+  enabled?: boolean;
 }
 
-export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }: DMProviderProps) {
+export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, enabled = true }: DMProviderProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { sendNIP4Message, sendNIP17Message } = useSendDM();
@@ -909,12 +910,14 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
 
   // Main effect to load messages
   useEffect(() => {
-    if (!userPubkey || hasInitialLoadCompleted || isLoading) return;
+    if (!enabled || !userPubkey || hasInitialLoadCompleted || isLoading) return;
     startMessageLoading();
-  }, [userPubkey, hasInitialLoadCompleted, isLoading]);
+  }, [enabled, userPubkey, hasInitialLoadCompleted, isLoading, startMessageLoading]);
 
   // Cleanup effect
   useEffect(() => {
+    if (!enabled) return;
+    
     return () => {
       if (nip4SubscriptionRef.current) {
         nip4SubscriptionRef.current.close();
@@ -925,10 +928,12 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
         nip17SubscriptionRef.current = null;
       }
     };
-  }, [userPubkey]);
+  }, [enabled, userPubkey]);
 
   // Cleanup subscriptions
   useEffect(() => {
+    if (!enabled) return;
+    
     return () => {
       if (nip4SubscriptionRef.current) {
         nip4SubscriptionRef.current.close();
@@ -941,7 +946,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
       }
       setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
     };
-  }, []);
+  }, [enabled]);
 
   // Conversations summary
   const conversations = useMemo(() => {
@@ -1035,7 +1040,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
 
   // Watch messages and save
   useEffect(() => {
-    if (messages.size === 0) return;
+    if (!enabled || messages.size === 0) return;
 
     if (shouldSaveImmediately) {
       setShouldSaveImmediately(false);
@@ -1043,10 +1048,12 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
     } else {
       triggerDebouncedWrite();
     }
-  }, [messages, shouldSaveImmediately, writeAllMessagesToStore, triggerDebouncedWrite]);
+  }, [enabled, messages, shouldSaveImmediately, writeAllMessagesToStore, triggerDebouncedWrite]);
 
   // Send message
   const sendMessage = useCallback(async (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => {
+    if (!enabled) return;
+    
     const { recipientPubkey, content, protocol = MESSAGE_PROTOCOL.NIP04 } = params;
     if (!userPubkey) return;
 
@@ -1075,10 +1082,10 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
     } catch (error) {
       console.error(`[DM] Failed to send ${protocol} message:`, error);
     }
-  }, [userPubkey, addMessageToState, sendNIP4Message, sendNIP17Message]);
+  }, [enabled, userPubkey, addMessageToState, sendNIP4Message, sendNIP17Message]);
 
   const clearCacheAndReload = useCallback(async () => {
-    if (!userPubkey) return;
+    if (!enabled || !userPubkey) return;
 
     try {
       // Close existing subscriptions
@@ -1108,7 +1115,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY }
       console.error('[DM] Error clearing cache:', error);
       throw error;
     }
-  }, [userPubkey]);
+  }, [enabled, userPubkey]);
 
   const isDoingInitialLoad = isLoading && (loadingPhase === LOADING_PHASES.CACHE || loadingPhase === LOADING_PHASES.RELAYS);
 

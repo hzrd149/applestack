@@ -45,7 +45,10 @@ const presetRelays = [
 ];
 
 const dmSettings = {
-  // Choose one:
+  // Enable or disable DMs entirely
+  enabled: true, // Set to false to completely disable messaging functionality
+  
+  // Choose one protocol mode:
   // PROTOCOL_MODE.NIP04_ONLY - Force NIP-04 (legacy) only
   // PROTOCOL_MODE.NIP17_ONLY - Force NIP-17 (private) only
   // PROTOCOL_MODE.NIP04_OR_NIP17 - Allow users to choose between NIP-04 and NIP-17 (defaults to NIP-17)
@@ -60,7 +63,7 @@ export function App() {
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
               <NWCProvider>
-                <DMProvider protocolMode={dmSettings.protocolMode}>
+                <DMProvider enabled={dmSettings.enabled} protocolMode={dmSettings.protocolMode}>
                   <TooltipProvider>
                     <Toaster />
                     <Suspense>
