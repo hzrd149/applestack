@@ -151,8 +151,11 @@ export function useSendDM(): UseSendDMReturn {
         ...createImetaTags(attachments)
       ];
 
+      // Use kind 15 for messages with file attachments, kind 14 for text-only
+      const messageKind = (attachments && attachments.length > 0) ? 15 : 14;
+
       const privateMessage: Omit<NostrEvent, 'id' | 'sig'> = {
-        kind: 14,
+        kind: messageKind,
         pubkey: user.pubkey,
         created_at: now,
         tags,

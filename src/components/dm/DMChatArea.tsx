@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Send, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NoteContent } from '@/components/NoteContent';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 interface DMChatAreaProps {
   pubkey: string | null;
@@ -26,13 +28,15 @@ const formatMessageTime = (timestamp: number) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const MessageBubble = memo(({ 
+const MessageBubble = memo(({
   message, 
   isFromCurrentUser 
 }: { 
   message: {
     id: string;
+    pubkey: string;
     kind: number;
+    tags: string[][];
     decryptedContent?: string;
     error?: string;
     created_at: number;
@@ -41,6 +45,18 @@ const MessageBubble = memo(({
   isFromCurrentUser: boolean;
 }) => {
   const isNIP4Message = message.kind === 4;
+  const isFileAttachment = message.kind === 15; // Kind 15 = files/attachments
+
+  // Create a NostrEvent object for NoteContent (only used for kind 15)
+  const messageEvent: NostrEvent = {
+    id: message.id,
+    pubkey: message.pubkey,
+    created_at: message.created_at,
+    kind: message.kind,
+    tags: message.tags,
+    content: message.decryptedContent || '',
+    sig: '', // Not needed for display
+  };
 
   return (
     <div className={cn("flex mb-4", isFromCurrentUser ? "justify-end" : "justify-start")}>
@@ -52,7 +68,13 @@ const MessageBubble = memo(({
       )}>
         {message.error ? (
           <p className="text-sm italic opacity-70">🔒 Failed to decrypt</p>
+        ) : isFileAttachment ? (
+          // Kind 15: Use NoteContent to render files/media with imeta tags
+          <div className="text-sm">
+            <NoteContent event={messageEvent} className="whitespace-pre-wrap break-words" />
+          </div>
         ) : (
+          // Kind 4 (NIP-04) and Kind 14 (NIP-17 text): Display plain text
           <p className="text-sm whitespace-pre-wrap break-words">
             {message.decryptedContent}
           </p>

@@ -704,6 +704,10 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       const sealEvent = JSON.parse(sealContent) as NostrEvent;
 
       if (sealEvent.kind !== 13) {
+        console.log(`[DM] ⚠️ NIP-17 INVALID SEAL - expected kind 13, got ${sealEvent.kind}`, {
+          giftWrapId: event.id,
+          sealKind: sealEvent.kind,
+        });
         return {
           processedMessage: {
             ...event,
@@ -718,13 +722,21 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       const messageContent = await user.signer.nip44.decrypt(sealEvent.pubkey, sealEvent.content);
       const messageEvent = JSON.parse(messageContent) as NostrEvent;
 
-      if (messageEvent.kind !== 14) {
+      // Accept both kind 14 (text) and kind 15 (files/attachments)
+      if (messageEvent.kind !== 14 && messageEvent.kind !== 15) {
+        console.log(`[DM] ⚠️ NIP-17 MESSAGE WITH UNSUPPORTED INNER EVENT KIND:`, {
+          giftWrapId: event.id,
+          innerKind: messageEvent.kind,
+          expectedKinds: [14, 15],
+          sealPubkey: sealEvent.pubkey,
+          messageEvent: messageEvent,
+        });
         return {
           processedMessage: {
             ...event,
             content: '',
             decryptedContent: '',
-            error: `Invalid message format - expected kind 14, got ${messageEvent.kind}`,
+            error: `Invalid message format - expected kind 14 or 15, got ${messageEvent.kind}`,
           },
           conversationPartner: event.pubkey,
         };
@@ -749,6 +761,13 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       } else {
         conversationPartner = sealEvent.pubkey;
       }
+
+      console.log(`[DM] ✅ NIP-17 message processed successfully`, {
+        giftWrapId: event.id,
+        innerKind: messageEvent.kind, // 14 for text, 15 for files
+        messageId: messageEvent.id,
+        conversationPartner,
+      });
 
       return {
         processedMessage: {
