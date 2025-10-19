@@ -1,0 +1,84 @@
+import { useState } from 'react';
+import { ConversationList } from '@/components/dm/ConversationList';
+import { ChatArea } from '@/components/dm/ChatArea';
+import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
+import { useDMContext } from '@/contexts/DMContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+interface MessagingInterfaceProps {
+  className?: string;
+}
+
+export const MessagingInterface = ({ className }: MessagingInterfaceProps) => {
+  const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const { clearCacheAndReload } = useDMContext();
+
+  // On mobile, show only one panel at a time
+  const showConversationList = !isMobile || !selectedPubkey;
+  const showChatArea = !isMobile || selectedPubkey;
+
+  const handleSelectConversation = (pubkey: string) => {
+    setSelectedPubkey(pubkey);
+  };
+
+  const handleBack = () => {
+    setSelectedPubkey(null);
+  };
+
+  return (
+    <>
+      {/* Status Modal */}
+      <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Messaging Status</DialogTitle>
+            <DialogDescription>
+              View loading status, cache info, and connection details
+            </DialogDescription>
+          </DialogHeader>
+          <DMStatusInfo clearCacheAndReload={clearCacheAndReload} />
+        </DialogContent>
+      </Dialog>
+
+      <div className={cn("flex gap-4 overflow-hidden", className)}>
+        {/* Conversation List - Left Sidebar */}
+        <div className={cn(
+          "md:w-80 md:flex-shrink-0",
+          isMobile && !showConversationList && "hidden",
+          isMobile && showConversationList && "w-full"
+        )}>
+          <ConversationList
+            selectedPubkey={selectedPubkey}
+            onSelectConversation={handleSelectConversation}
+            className="h-full"
+            onStatusClick={() => setStatusModalOpen(true)}
+          />
+        </div>
+
+        {/* Chat Area - Right Panel */}
+        <div className={cn(
+          "flex-1 md:min-w-0",
+          isMobile && !showChatArea && "hidden",
+          isMobile && showChatArea && "w-full"
+        )}>
+          <ChatArea
+            pubkey={selectedPubkey}
+            onBack={isMobile ? handleBack : undefined}
+            className="h-full"
+          />
+        </div>
+      </div>
+    </>
+  );
+};
+
