@@ -285,7 +285,12 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
 
     let allNIP17Events: NostrEvent[] = [];
     let processedMessages = 0;
-    let currentSince = sinceTimestamp || 0;
+    
+    // Adjust since timestamp to account for NIP-17 timestamp fuzzing (±2 days)
+    // We need to query from (lastSync - 2 days) to catch messages with randomized past timestamps
+    // This may fetch duplicates, but they're filtered by message ID in addMessageToState
+    const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60;
+    let currentSince = sinceTimestamp ? sinceTimestamp - TWO_DAYS_IN_SECONDS : 0;
 
     setScanProgress(prev => ({ ...prev, nip17: { current: 0, status: SCAN_STATUS_MESSAGES.NIP17_STARTING } }));
 
@@ -853,6 +858,11 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       if (!sinceTimestamp && lastSync.nip17) {
         subscriptionSince = lastSync.nip17 - DM_CONSTANTS.SUBSCRIPTION_OVERLAP_SECONDS;
       }
+      
+      // Adjust for NIP-17 timestamp fuzzing (±2 days)
+      // Subscribe from (lastSync - 2 days) to catch messages with randomized past timestamps
+      const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60;
+      subscriptionSince = subscriptionSince - TWO_DAYS_IN_SECONDS;
 
       const filters = [{
         kinds: [1059],
