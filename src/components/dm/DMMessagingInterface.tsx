@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { DMConversationList } from '@/components/dm/DMConversationList';
 import { DMChatArea } from '@/components/dm/DMChatArea';
 import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
@@ -27,13 +27,13 @@ export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) =
   const showConversationList = !isMobile || !selectedPubkey;
   const showChatArea = !isMobile || selectedPubkey;
 
-  const handleSelectConversation = (pubkey: string) => {
+  const handleSelectConversation = useCallback((pubkey: string) => {
     setSelectedPubkey(pubkey);
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setSelectedPubkey(null);
-  };
+  }, []);
 
   return (
     <>

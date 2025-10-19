@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useConversationMessages, useDMContext } from '@/contexts/DMContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -20,7 +20,13 @@ interface DMChatAreaProps {
   className?: string;
 }
 
-const MessageBubble = ({ 
+// Helper function outside component to avoid recreation
+const formatMessageTime = (timestamp: number) => {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const MessageBubble = memo(({ 
   message, 
   isFromCurrentUser 
 }: { 
@@ -34,11 +40,6 @@ const MessageBubble = ({
   };
   isFromCurrentUser: boolean;
 }) => {
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   const isNIP4Message = message.kind === 4;
 
   return (
@@ -61,7 +62,7 @@ const MessageBubble = ({
             "text-xs opacity-70",
             isFromCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
           )}>
-            {formatTime(message.created_at)}
+            {formatMessageTime(message.created_at)}
           </span>
           {isNIP4Message && (
             <TooltipProvider>
@@ -84,7 +85,9 @@ const MessageBubble = ({
       </div>
     </div>
   );
-};
+});
+
+MessageBubble.displayName = 'MessageBubble';
 
 const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void }) => {
   const author = useAuthor(pubkey);
@@ -180,7 +183,7 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
     }
   }, [messages.length]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!messageText.trim() || !pubkey || !user) return;
 
     setIsSending(true);
@@ -196,14 +199,14 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
     } finally {
       setIsSending(false);
     }
-  };
+  }, [messageText, pubkey, user, sendMessage, selectedProtocol]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
 
   if (!pubkey) {
     return (

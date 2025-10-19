@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 import { useDMContext } from '@/contexts/DMContext';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -18,7 +18,23 @@ interface DMConversationListProps {
   onStatusClick?: () => void;
 }
 
-const ConversationItem = ({ 
+// Helper function outside component to avoid recreation
+const formatConversationTime = (timestamp: number) => {
+  const now = Date.now() / 1000;
+  const diff = now - timestamp;
+
+  if (diff < 60) return 'now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
+  
+  const date = new Date(timestamp * 1000);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}/${day}`;
+};
+
+const ConversationItem = memo(({ 
   pubkey, 
   isSelected, 
   onClick,
@@ -39,22 +55,6 @@ const ConversationItem = ({
   const displayName = metadata?.name || genUserName(pubkey);
   const avatarUrl = metadata?.picture;
   const initials = displayName.slice(0, 2).toUpperCase();
-
-  // Format timestamp
-  const formatTime = (timestamp: number) => {
-    const now = Date.now() / 1000;
-    const diff = now - timestamp;
-
-    if (diff < 60) return 'now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-    
-    const date = new Date(timestamp * 1000);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}/${day}`;
-  };
 
   const lastMessagePreview = lastMessage?.error 
     ? '🔒 Encrypted message' 
@@ -94,7 +94,7 @@ const ConversationItem = ({
               )}
             </div>
             <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-              {formatTime(lastActivity)}
+              {formatConversationTime(lastActivity)}
             </span>
           </div>
           
@@ -105,7 +105,9 @@ const ConversationItem = ({
       </div>
     </button>
   );
-};
+});
+
+ConversationItem.displayName = 'ConversationItem';
 
 const ConversationListSkeleton = () => {
   return (
