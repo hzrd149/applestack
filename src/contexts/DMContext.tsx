@@ -69,6 +69,7 @@ interface DecryptedMessage extends NostrEvent {
   error?: string;
   isSending?: boolean;
   clientFirstSeen?: number;
+  originalGiftWrap?: NostrEvent; // Store original kind 1059 event for NIP-17 to enable cache re-decryption
 }
 
 interface NIP17ProcessingResult {
@@ -358,9 +359,11 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
           }
 
           const newState = new Map();
+
           for (const [participantPubkey, participant] of Object.entries(filteredParticipants)) {
             const processedMessages = await Promise.all(participant.messages.map(async (msg) => {
               if (msg.kind === 4) {
+                // NIP-04 encrypted DM - re-decrypt on load
                 const isFromUser = msg.pubkey === user?.pubkey;
                 const recipientPTag = msg.tags?.find(([name]) => name === 'p')?.[1];
                 const otherPubkey = isFromUser ? recipientPTag : msg.pubkey;
@@ -375,11 +378,19 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
                   } as NostrEvent & { decryptedContent?: string; error?: string };
                 }
               } else if (msg.kind === 1059) {
+                // NIP-17 gift wrap - re-decrypt on load
                 const { processedMessage } = await processNIP17GiftWrap(msg);
-                // Use the real message (kind 14) with real timestamp, not gift wrap
                 return {
                   ...processedMessage,
                   content: msg.content, // Keep original encrypted content
+                  originalGiftWrap: msg, // Store gift wrap for next cache save
+                } as NostrEvent & { decryptedContent?: string; error?: string; originalGiftWrap?: NostrEvent };
+              } else if (msg.kind === 14 || msg.kind === 15) {
+                // Old cached format (before fix) - content is already decrypted, just use it
+                // These messages were saved without the gift wrap, but the content IS the decrypted text
+                return {
+                  ...msg,
+                  decryptedContent: msg.content, // Content is already decrypted in old format
                 } as NostrEvent & { decryptedContent?: string; error?: string };
               }
               return msg;
@@ -489,6 +500,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
           const messageWithAnimation: DecryptedMessage = {
             ...processedMessage,
             content: giftWrap.content, // Keep original encrypted content for storage
+            originalGiftWrap: giftWrap, // Store the gift wrap for cache re-decryption
           };
 
           // Use real message timestamp for recency check
@@ -803,6 +815,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
     const messageWithAnimation: DecryptedMessage = {
       ...processedMessage,
       content: event.content, // Keep original encrypted content for storage
+      originalGiftWrap: event, // Store the gift wrap for cache re-decryption
     };
 
     // Use real message timestamp for recency check
@@ -1054,15 +1067,22 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
 
       messages.forEach((participant, participantPubkey) => {
         messageStore.participants[participantPubkey] = {
-          messages: participant.messages.map(msg => ({
-            id: msg.id,
-            pubkey: msg.pubkey,
-            content: msg.content,
-            created_at: msg.created_at,
-            kind: msg.kind,
-            tags: msg.tags,
-            sig: msg.sig,
-          } as NostrEvent)),
+          messages: participant.messages.map(msg => {
+            // For NIP-17 messages, save the original gift wrap so we can re-decrypt from cache
+            if (msg.originalGiftWrap) {
+              return msg.originalGiftWrap;
+            }
+            // For NIP-04 or other messages, save normally
+            return {
+              id: msg.id,
+              pubkey: msg.pubkey,
+              content: msg.content,
+              created_at: msg.created_at,
+              kind: msg.kind,
+              tags: msg.tags,
+              sig: msg.sig,
+            } as NostrEvent;
+          }),
           lastActivity: participant.lastActivity,
           hasNIP4: participant.hasNIP4,
           hasNIP17: participant.hasNIP17,
