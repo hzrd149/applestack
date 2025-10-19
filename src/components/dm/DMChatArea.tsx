@@ -153,10 +153,11 @@ const EmptyState = ({ isLoading }: { isLoading: boolean }) => {
 export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
   const { user } = useCurrentUser();
   const { sendMessage, protocolMode, isLoading } = useDMContext();
-  const { messages } = useConversationMessages(pubkey || '');
+  const { messages, hasMoreMessages, loadEarlierMessages } = useConversationMessages(pubkey || '');
   
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Determine default protocol based on mode
   const getDefaultProtocol = () => {
@@ -208,6 +209,32 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
     }
   }, [handleSend]);
 
+  const handleLoadMore = useCallback(async () => {
+    if (!scrollAreaRef.current || isLoadingMore) return;
+    
+    const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollContainer) return;
+    
+    // Store current scroll position and height
+    const previousScrollHeight = scrollContainer.scrollHeight;
+    const previousScrollTop = scrollContainer.scrollTop;
+    
+    setIsLoadingMore(true);
+    
+    // Load more messages
+    loadEarlierMessages();
+    
+    // Wait for DOM to update, then restore relative scroll position
+    setTimeout(() => {
+      if (scrollContainer) {
+        const newScrollHeight = scrollContainer.scrollHeight;
+        const heightDifference = newScrollHeight - previousScrollHeight;
+        scrollContainer.scrollTop = previousScrollTop + heightDifference;
+      }
+      setIsLoadingMore(false);
+    }, 0);
+  }, [loadEarlierMessages, isLoadingMore]);
+
   if (!pubkey) {
     return (
       <Card className={cn("h-full", className)}>
@@ -240,6 +267,26 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
           </div>
         ) : (
           <div>
+            {hasMoreMessages && (
+              <div className="flex justify-center mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="text-xs"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Load Earlier Messages'
+                  )}
+                </Button>
+              </div>
+            )}
             {messages.map((message) => (
               <MessageBubble
                 key={message.id}

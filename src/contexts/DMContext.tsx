@@ -134,10 +134,13 @@ export function useDMContext(): DMContextType {
   return context;
 }
 
+const MESSAGES_PER_PAGE = 25;
+
 export function useConversationMessages(conversationId: string) {
   const { messages: allMessages } = useDMContext();
+  const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE);
 
-  return useMemo(() => {
+  const result = useMemo(() => {
     const conversationData = allMessages.get(conversationId);
 
     if (!conversationData) {
@@ -150,14 +153,34 @@ export function useConversationMessages(conversationId: string) {
       };
     }
 
+    const totalMessages = conversationData.messages.length;
+    const hasMore = totalMessages > visibleCount;
+    
+    // Return the most recent N messages (slice from the end)
+    const visibleMessages = conversationData.messages.slice(-visibleCount);
+
     return {
-      messages: conversationData.messages,
-      hasMoreMessages: false,
-      totalCount: conversationData.messages.length,
+      messages: visibleMessages,
+      hasMoreMessages: hasMore,
+      totalCount: totalMessages,
       lastMessage: conversationData.lastMessage,
       lastActivity: conversationData.lastActivity,
     };
-  }, [allMessages, conversationId]);
+  }, [allMessages, conversationId, visibleCount]);
+
+  const loadEarlierMessages = useCallback(() => {
+    setVisibleCount(prev => prev + MESSAGES_PER_PAGE);
+  }, []);
+
+  // Reset visible count when conversation changes
+  useEffect(() => {
+    setVisibleCount(MESSAGES_PER_PAGE);
+  }, [conversationId]);
+
+  return {
+    ...result,
+    loadEarlierMessages,
+  };
 }
 
 interface DMProviderProps {
