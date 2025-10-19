@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { MessagingInterface } from '@/components/dm/MessagingInterface';
+import { DMMessagingInterface } from '@/components/dm/DMMessagingInterface';
 
 const Messages = () => {
   useSeoMeta({
@@ -10,7 +10,7 @@ const Messages = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 h-screen flex flex-col">
-        <MessagingInterface className="flex-1" />
+        <DMMessagingInterface className="flex-1" />
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ArrowLeft, Send, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface ChatAreaProps {
+interface DMChatAreaProps {
   pubkey: string | null;
   onBack?: () => void;
   className?: string;
@@ -147,7 +147,7 @@ const EmptyState = ({ isLoading }: { isLoading: boolean }) => {
   );
 };
 
-export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
+export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
   const { user } = useCurrentUser();
   const { sendMessage, protocolMode, isLoading } = useDMContext();
   const { messages } = useConversationMessages(pubkey || '');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ConversationList } from '@/components/dm/ConversationList';
-import { ChatArea } from '@/components/dm/ChatArea';
+import { DMConversationList } from '@/components/dm/DMConversationList';
+import { DMChatArea } from '@/components/dm/DMChatArea';
 import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
 import { useDMContext } from '@/contexts/DMContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -13,11 +13,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-interface MessagingInterfaceProps {
+interface DMMessagingInterfaceProps {
   className?: string;
 }
 
-export const MessagingInterface = ({ className }: MessagingInterfaceProps) => {
+export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) => {
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -57,7 +57,7 @@ export const MessagingInterface = ({ className }: MessagingInterfaceProps) => {
           isMobile && !showConversationList && "hidden",
           isMobile && showConversationList && "w-full"
         )}>
-          <ConversationList
+          <DMConversationList
             selectedPubkey={selectedPubkey}
             onSelectConversation={handleSelectConversation}
             className="h-full"
@@ -71,7 +71,7 @@ export const MessagingInterface = ({ className }: MessagingInterfaceProps) => {
           isMobile && !showChatArea && "hidden",
           isMobile && showChatArea && "w-full"
         )}>
-          <ChatArea
+          <DMChatArea
             pubkey={selectedPubkey}
             onBack={isMobile ? handleBack : undefined}
             className="h-full"

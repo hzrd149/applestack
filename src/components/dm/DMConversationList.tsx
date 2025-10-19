@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-interface ConversationListProps {
+interface DMConversationListProps {
   selectedPubkey: string | null;
   onSelectConversation: (pubkey: string) => void;
   className?: string;
@@ -126,12 +126,12 @@ const ConversationListSkeleton = () => {
   );
 };
 
-export const ConversationList = ({ 
+export const DMConversationList = ({ 
   selectedPubkey, 
   onSelectConversation,
   className,
   onStatusClick
-}: ConversationListProps) => {
+}: DMConversationListProps) => {
   const { conversations, isLoading } = useDMContext();
   const [activeTab, setActiveTab] = useState<'known' | 'requests'>('known');
 
