@@ -134,6 +134,14 @@ export function useSendDM(): UseSendDMReturn {
       // Step 1: Create the inner Kind 14 Private Direct Message
       const now = Math.floor(Date.now() / 1000);
       
+      // Generate randomized timestamps for gift wraps (NIP-59 metadata privacy)
+      // Randomize within ±2 days to hide actual send time from relays
+      const randomizeTimestamp = (baseTime: number) => {
+        const twoDaysInSeconds = 2 * 24 * 60 * 60;
+        const randomOffset = Math.floor(Math.random() * twoDaysInSeconds * 2) - twoDaysInSeconds;
+        return baseTime + randomOffset;
+      };
+      
       // Prepare content with file URLs
       const messageContent = prepareMessageContent(content, attachments);
 
@@ -176,19 +184,19 @@ export function useSendDM(): UseSendDMReturn {
       const recipientRandomSigner = new NSecSigner(generateSecretKey());
       const senderRandomSigner = new NSecSigner(generateSecretKey());
 
-      // Sign both gift wraps with random keys
+      // Sign both gift wraps with random keys and randomized timestamps
       const [recipientGiftWrap, senderGiftWrap] = await Promise.all([
         recipientRandomSigner.sign({
           kind: 1059,
           pubkey: getPublicKey(recipientRandomSigner.privateKey),
-          created_at: now,
+          created_at: randomizeTimestamp(now),  // Randomized to hide real send time
           tags: [['p', recipientPubkey]],
           content: await recipientRandomSigner.nip44!.encrypt(recipientPubkey, JSON.stringify(recipientSeal)),
         }),
         senderRandomSigner.sign({
           kind: 1059,
           pubkey: getPublicKey(senderRandomSigner.privateKey),
-          created_at: now,
+          created_at: randomizeTimestamp(now),  // Randomized to hide real send time
           tags: [['p', user.pubkey]],
           content: await senderRandomSigner.nip44!.encrypt(user.pubkey, JSON.stringify(senderSeal)),
         }),

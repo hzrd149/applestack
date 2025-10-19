@@ -371,10 +371,10 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
                 }
               } else if (msg.kind === 1059) {
                 const { processedMessage } = await processNIP17GiftWrap(msg);
+                // Use the real message (kind 14) with real timestamp, not gift wrap
                 return {
-                  ...msg,
-                  decryptedContent: processedMessage.decryptedContent,
-                  error: processedMessage.error,
+                  ...processedMessage,
+                  content: msg.content, // Keep original encrypted content
                 } as NostrEvent & { decryptedContent?: string; error?: string };
               }
               return msg;
@@ -480,13 +480,14 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
         for (const giftWrap of messages) {
           const { processedMessage, conversationPartner } = await processNIP17GiftWrap(giftWrap);
 
+          // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
           const messageWithAnimation: DecryptedMessage = {
-            ...giftWrap,
-            decryptedContent: processedMessage.decryptedContent,
-            error: processedMessage.error,
+            ...processedMessage,
+            content: giftWrap.content, // Keep original encrypted content for storage
           };
 
-          const messageAge = Date.now() - (giftWrap.created_at * 1000);
+          // Use real message timestamp for recency check
+          const messageAge = Date.now() - (processedMessage.created_at * 1000);
           if (messageAge < 5000) {
             messageWithAnimation.clientFirstSeen = Date.now();
           }
@@ -774,13 +775,14 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
 
     const { processedMessage, conversationPartner } = await processNIP17GiftWrap(event);
 
+    // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
     const messageWithAnimation: DecryptedMessage = {
-      ...event,
-      decryptedContent: processedMessage.decryptedContent,
-      error: processedMessage.error,
+      ...processedMessage,
+      content: event.content, // Keep original encrypted content for storage
     };
 
-    const messageAge = Date.now() - (event.created_at * 1000);
+    // Use real message timestamp for recency check
+    const messageAge = Date.now() - (processedMessage.created_at * 1000);
     if (messageAge < 5000) {
       messageWithAnimation.clientFirstSeen = Date.now();
     }
@@ -1083,9 +1085,9 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
     const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;
     const optimisticMessage: DecryptedMessage = {
       id: optimisticId,
-      kind: protocol === MESSAGE_PROTOCOL.NIP04 ? 4 : 1059,
+      kind: protocol === MESSAGE_PROTOCOL.NIP04 ? 4 : 14, // Use kind 14 for NIP-17 (the real message kind)
       pubkey: userPubkey,
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: Math.floor(Date.now() / 1000), // Real timestamp
       tags: [['p', recipientPubkey]],
       content: '',
       decryptedContent: content,
