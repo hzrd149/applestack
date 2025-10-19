@@ -122,14 +122,26 @@ const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void })
   );
 };
 
-const EmptyState = () => {
+const EmptyState = ({ isLoading }: { isLoading: boolean }) => {
   return (
     <div className="h-full flex items-center justify-center p-8">
       <div className="text-center text-muted-foreground max-w-sm">
-        <p className="text-sm">Select a conversation to start messaging</p>
-        <p className="text-xs mt-2">
-          Your messages are encrypted and stored locally
-        </p>
+        {isLoading ? (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-sm">Loading conversations...</p>
+            <p className="text-xs mt-2">
+              Fetching encrypted messages from relays
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm">Select a conversation to start messaging</p>
+            <p className="text-xs mt-2">
+              Your messages are encrypted and stored locally
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -137,7 +149,7 @@ const EmptyState = () => {
 
 export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
   const { user } = useCurrentUser();
-  const { sendMessage, protocolMode } = useDMContext();
+  const { sendMessage, protocolMode, isLoading } = useDMContext();
   const { messages } = useConversationMessages(pubkey || '');
   
   const [messageText, setMessageText] = useState('');
@@ -196,7 +208,7 @@ export const ChatArea = ({ pubkey, onBack, className }: ChatAreaProps) => {
   if (!pubkey) {
     return (
       <Card className={cn("h-full", className)}>
-        <EmptyState />
+        <EmptyState isLoading={isLoading} />
       </Card>
     );
   }
