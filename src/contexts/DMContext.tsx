@@ -372,6 +372,7 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
                   const { decryptedContent, error } = await decryptNIP4Message(msg, otherPubkey);
                   return {
                     ...msg,
+                    id: msg.id || `missing-nip4-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content.substring(0, 16)}`,
                     content: msg.content,
                     decryptedContent: decryptedContent,
                     error: error,
@@ -390,10 +391,16 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
                 // These messages were saved without the gift wrap, but the content IS the decrypted text
                 return {
                   ...msg,
+                  // Ensure unique ID even if two messages sent in same second
+                  id: msg.id || `missing-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content.substring(0, 16)}`,
                   decryptedContent: msg.content, // Content is already decrypted in old format
                 } as NostrEvent & { decryptedContent?: string; error?: string };
               }
-              return msg;
+              // Final fallback: ensure all messages have unique IDs
+              return {
+                ...msg,
+                id: msg.id || `missing-${msg.kind}-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content?.substring(0, 16) || 'nocontent'}`,
+              };
             }));
 
             newState.set(participantPubkey, {
@@ -774,16 +781,17 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
         conversationPartner = sealEvent.pubkey;
       }
 
-      console.log(`[DM] ✅ NIP-17 message processed successfully`, {
-        giftWrapId: event.id,
-        innerKind: messageEvent.kind, // 14 for text, 15 for files
-        messageId: messageEvent.id,
-        conversationPartner,
-      });
+      // console.log(`[DM] ✅ NIP-17 message processed successfully`, {
+      //   giftWrapId: event.id,
+      //   innerKind: messageEvent.kind, // 14 for text, 15 for files
+      //   messageId: messageEvent.id,
+      //   conversationPartner,
+      // });
 
       return {
         processedMessage: {
           ...messageEvent,
+          id: messageEvent.id || `missing-nip17-inner-${messageEvent.created_at}-${messageEvent.pubkey.substring(0, 8)}-${messageEvent.content.substring(0, 16)}`,
           content: event.content,
           decryptedContent: messageEvent.content,
         },
