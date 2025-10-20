@@ -601,9 +601,15 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
           const mergedMessages = [...existing.messages, ...newMessages];
           mergedMessages.sort((a, b) => a.created_at - b.created_at);
 
+          // Recalculate lastActivity and lastMessage after merging
+          const lastMessage = mergedMessages.length > 0 ? mergedMessages[mergedMessages.length - 1] : null;
+          const lastActivity = lastMessage ? lastMessage.created_at : existing.lastActivity;
+
           finalMap.set(key, {
             ...existing,
             messages: mergedMessages,
+            lastActivity,
+            lastMessage,
             hasNIP4: existing.hasNIP4 || value.hasNIP4,
             hasNIP17: existing.hasNIP17 || value.hasNIP17,
           });
