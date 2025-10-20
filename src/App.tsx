@@ -11,7 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
-import { DMProvider } from '@/contexts/DMContext';
+import { DMProvider, type DMConfig } from '@/contexts/DMContext';
 import { AppConfig } from '@/contexts/AppContext';
 import { PROTOCOL_MODE } from '@/lib/dmConstants';
 import AppRouter from './AppRouter';
@@ -44,7 +44,7 @@ const presetRelays = [
   { url: 'wss://relay.primal.net', name: 'Primal' },
 ];
 
-const dmSettings = {
+const dmConfig: DMConfig = {
   // Enable or disable DMs entirely
   enabled: true, // Set to false to completely disable messaging functionality
   
@@ -63,7 +63,7 @@ export function App() {
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
               <NWCProvider>
-                <DMProvider enabled={dmSettings.enabled} protocolMode={dmSettings.protocolMode}>
+                <DMProvider config={dmConfig}>
                   <TooltipProvider>
                     <Toaster />
                     <Suspense>

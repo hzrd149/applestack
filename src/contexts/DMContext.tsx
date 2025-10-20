@@ -185,22 +185,27 @@ export function useConversationMessages(conversationId: string) {
   };
 }
 
-interface DMProviderProps {
-  children: ReactNode;
-  protocolMode?: ProtocolMode;
+export interface DMConfig {
   enabled?: boolean;
+  protocolMode?: ProtocolMode;
 }
 
-export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, enabled = true }: DMProviderProps) {
+interface DMProviderProps {
+  children: ReactNode;
+  config?: DMConfig;
+}
+
+export function DMProvider({ children, config }: DMProviderProps) {
+  const { enabled = true, protocolMode = PROTOCOL_MODE.NIP17_ONLY } = config || {};
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { sendNIP4Message, sendNIP17Message } = useSendDM();
-  const { config } = useAppContext();
+  const { config: appConfig } = useAppContext();
 
   const userPubkey = useMemo(() => user?.pubkey, [user?.pubkey]);
   
   // Track relay URL to detect changes
-  const previousRelayUrl = useRef<string>(config.relayUrl);
+  const previousRelayUrl = useRef<string>(appConfig.relayUrl);
   
   // Determine if NIP-17 is enabled based on protocol mode
   const enableNIP17 = protocolMode !== PROTOCOL_MODE.NIP04_ONLY;
@@ -1070,13 +1075,13 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
 
   // Detect relay changes and reload messages
   useEffect(() => {
-    const relayChanged = previousRelayUrl.current !== config.relayUrl;
-    previousRelayUrl.current = config.relayUrl;
+    const relayChanged = previousRelayUrl.current !== appConfig.relayUrl;
+    previousRelayUrl.current = appConfig.relayUrl;
     
     if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
       clearCacheAndReload();
     }
-  }, [enabled, userPubkey, config.relayUrl, hasInitialLoadCompleted, clearCacheAndReload]);
+  }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndReload]);
 
   // Conversations summary
   const conversations = useMemo(() => {
