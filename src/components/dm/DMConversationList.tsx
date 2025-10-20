@@ -3,6 +3,7 @@ import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useDMContext } from '@/contexts/DMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { formatConversationTime, formatFullDateTime } from '@/lib/dmUtils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,52 +19,6 @@ interface DMConversationListProps {
   className?: string;
   onStatusClick?: () => void;
 }
-
-// Helper functions for conversation timestamps (matches Signal/WhatsApp/Telegram pattern)
-const formatConversationTime = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000);
-  const now = new Date();
-  
-  // Start of today (midnight)
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-  // Start of yesterday
-  const yesterdayStart = new Date(todayStart);
-  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-  
-  // Start of this week (assuming week starts on Sunday, adjust if needed)
-  const weekStart = new Date(todayStart);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  
-  if (date >= todayStart) {
-    // Today: Show time (e.g., "2:45 PM")
-    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  } else if (date >= yesterdayStart) {
-    // Yesterday
-    return 'Yesterday';
-  } else if (date >= weekStart) {
-    // This week: Show day name (e.g., "Monday")
-    return date.toLocaleDateString(undefined, { weekday: 'short' });
-  } else if (date.getFullYear() === now.getFullYear()) {
-    // This year: Show month and day (e.g., "Jan 15")
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } else {
-    // Older: Show full date (e.g., "Jan 15, 2024")
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-};
-
-const formatFullDateTime = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleString(undefined, { 
-    weekday: 'short',
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric', 
-    hour: 'numeric', 
-    minute: '2-digit'
-  });
-};
 
 const ConversationItem = memo(({ 
   pubkey, 

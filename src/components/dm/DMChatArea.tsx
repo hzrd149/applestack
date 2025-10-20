@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { MESSAGE_PROTOCOL, PROTOCOL_MODE, type MessageProtocol } from '@/lib/dmConstants';
+import { formatConversationTime, formatFullDateTime } from '@/lib/dmUtils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,12 +22,6 @@ interface DMChatAreaProps {
   onBack?: () => void;
   className?: string;
 }
-
-// Helper function outside component to avoid recreation
-const formatMessageTime = (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
 
 const MessageBubble = memo(({
   message, 
@@ -87,12 +82,21 @@ const MessageBubble = memo(({
           </p>
         )}
         <div className="flex items-center gap-2 mt-1">
-          <span className={cn(
-            "text-xs opacity-70",
-            isFromCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
-          )}>
-            {formatMessageTime(message.created_at)}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn(
+                  "text-xs opacity-70 cursor-default",
+                  isFromCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                )}>
+                  {formatConversationTime(message.created_at)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">{formatFullDateTime(message.created_at)}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {isNIP4Message && (
             <TooltipProvider>
               <Tooltip>
