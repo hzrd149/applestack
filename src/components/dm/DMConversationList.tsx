@@ -1,5 +1,5 @@
 import { useMemo, useState, memo } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useDMContext } from '@/contexts/DMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { LOADING_PHASES } from '@/lib/dmConstants';
 
 interface DMConversationListProps {
   selectedPubkey: string | null;
@@ -173,7 +174,7 @@ export const DMConversationList = ({
   className,
   onStatusClick
 }: DMConversationListProps) => {
-  const { conversations, isLoading } = useDMContext();
+  const { conversations, isLoading, loadingPhase } = useDMContext();
   const [activeTab, setActiveTab] = useState<'known' | 'requests'>('known');
 
   // Filter conversations by type
@@ -187,29 +188,36 @@ export const DMConversationList = ({
   // Get the current list based on active tab
   const currentConversations = activeTab === 'known' ? knownConversations : requestConversations;
 
-  if (isLoading) {
-    return (
-      <Card className={cn("h-full", className)}>
-        <ConversationListSkeleton />
-      </Card>
-    );
-  }
-
-  if (conversations.length === 0) {
-    return (
-      <Card className={cn("h-full flex items-center justify-center p-8", className)}>
-        <div className="text-center text-muted-foreground">
-          <p className="text-sm">No conversations yet</p>
-          <p className="text-xs mt-1">Start a new conversation to get started</p>
-        </div>
-      </Card>
-    );
-  }
+  // Show skeleton during initial load (cache + relays) if we have no conversations yet
+  const isInitialLoad = (loadingPhase === LOADING_PHASES.CACHE || loadingPhase === LOADING_PHASES.RELAYS) && conversations.length === 0;
 
   return (
     <Card className={cn("h-full flex flex-col overflow-hidden", className)}>
+      {/* Header - always visible */}
       <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Messages</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-lg">Messages</h2>
+          {(loadingPhase === LOADING_PHASES.CACHE || 
+            loadingPhase === LOADING_PHASES.RELAYS || 
+            loadingPhase === LOADING_PHASES.SUBSCRIPTIONS) && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    {loadingPhase === LOADING_PHASES.CACHE && 'Loading from cache...'}
+                    {loadingPhase === LOADING_PHASES.RELAYS && 'Querying relays for new messages...'}
+                    {loadingPhase === LOADING_PHASES.SUBSCRIPTIONS && 'Setting up subscriptions...'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         {onStatusClick && (
           <Button
             variant="ghost"
@@ -223,7 +231,7 @@ export const DMConversationList = ({
         )}
       </div>
       
-      {/* Tab buttons */}
+      {/* Tab buttons - always visible */}
       <div className="px-2 pt-2 flex-shrink-0">
         <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-lg">
           <button
@@ -251,11 +259,20 @@ export const DMConversationList = ({
         </div>
       </div>
       
-      {/* Single shared container */}
+      {/* Content area - show skeleton during initial load, otherwise show conversations */}
       <div className="flex-1 min-h-0 mt-2 overflow-hidden">
-        {currentConversations.length === 0 ? (
+        {(isLoading || isInitialLoad) ? (
+          <ConversationListSkeleton />
+        ) : conversations.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-center text-muted-foreground px-4">
+            <div>
+              <p className="text-sm">No conversations yet</p>
+              <p className="text-xs mt-1">Start a new conversation to get started</p>
+            </div>
+          </div>
+        ) : currentConversations.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-center text-muted-foreground px-4">
-            <p className="text-sm">No conversations</p>
+            <p className="text-sm">No {activeTab} conversations</p>
           </div>
         ) : (
           <ScrollArea key={activeTab} className="h-full block">
