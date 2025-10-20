@@ -6,8 +6,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
 // ============================================================================
 
 const DB_NAME = 'nostr-dm-store';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bump version for encrypted cache format
 const STORE_NAME = 'messages';
+
+// Signer interface for NIP-44 encryption/decryption
+interface NIP44Signer {
+  encrypt(pubkey: string, plaintext: string): Promise<string>;
+  decrypt(pubkey: string, ciphertext: string): Promise<string>;
+}
 
 interface StoredParticipant {
   messages: NostrEvent[];
@@ -22,6 +28,25 @@ export interface MessageStore {
     nip4: number | null;
     nip17: number | null;
   };
+}
+
+// Wrapper for encrypted storage
+interface EncryptedStore {
+  version: 2; // Format version
+  encrypted: true;
+  data: string; // NIP-44 encrypted MessageStore JSON
+}
+
+// Type guard to check if data is encrypted
+function isEncryptedStore(data: unknown): data is EncryptedStore {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'encrypted' in data &&
+    (data as EncryptedStore).encrypted === true &&
+    'version' in data &&
+    (data as EncryptedStore).version === 2
+  );
 }
 
 // ============================================================================
@@ -44,14 +69,34 @@ async function openDatabase(): Promise<IDBPDatabase> {
 
 /**
  * Write messages to IndexedDB for a specific user
+ * If signer is provided, encrypts the entire store with NIP-44
  */
 export async function writeMessagesToDB(
   userPubkey: string,
-  messageStore: MessageStore
+  messageStore: MessageStore,
+  signer?: { nip44?: NIP44Signer }
 ): Promise<void> {
   try {
     const db = await openDatabase();
-    await db.put(STORE_NAME, messageStore, userPubkey);
+    
+    // If signer is available, encrypt the entire store
+    if (signer?.nip44) {
+      const plaintext = JSON.stringify(messageStore);
+      const encrypted = await signer.nip44.encrypt(userPubkey, plaintext);
+      
+      const encryptedStore: EncryptedStore = {
+        version: 2,
+        encrypted: true,
+        data: encrypted,
+      };
+      
+      await db.put(STORE_NAME, encryptedStore, userPubkey);
+      console.log('[MessageStore] ✅ Encrypted cache saved');
+    } else {
+      // Fallback: save unencrypted (for backward compatibility)
+      await db.put(STORE_NAME, messageStore, userPubkey);
+      console.log('[MessageStore] ⚠️ Unencrypted cache saved (no signer)');
+    }
   } catch (error) {
     console.error('[MessageStore] Error writing to IndexedDB:', error);
     throw error;
@@ -60,14 +105,41 @@ export async function writeMessagesToDB(
 
 /**
  * Read messages from IndexedDB for a specific user
+ * If data is encrypted, decrypts it using the provided signer
  */
 export async function readMessagesFromDB(
-  userPubkey: string
+  userPubkey: string,
+  signer?: { nip44?: NIP44Signer }
 ): Promise<MessageStore | undefined> {
   try {
     const db = await openDatabase();
     const data = await db.get(STORE_NAME, userPubkey);
-    return data as MessageStore | undefined;
+    
+    if (!data) {
+      return undefined;
+    }
+    
+    // Check if data is encrypted
+    if (isEncryptedStore(data)) {
+      if (!signer?.nip44) {
+        console.error('[MessageStore] ❌ Encrypted cache found but no signer available');
+        return undefined;
+      }
+      
+      try {
+        const decrypted = await signer.nip44.decrypt(userPubkey, data.data);
+        const messageStore = JSON.parse(decrypted) as MessageStore;
+        console.log('[MessageStore] ✅ Decrypted cache loaded');
+        return messageStore;
+      } catch (error) {
+        console.error('[MessageStore] ❌ Failed to decrypt cache:', error);
+        return undefined;
+      }
+    }
+    
+    // Backward compatibility: unencrypted cache
+    console.log('[MessageStore] ⚠️ Loaded unencrypted cache (old format)');
+    return data as MessageStore;
   } catch (error) {
     console.error('[MessageStore] Error reading from IndexedDB:', error);
     throw error;

@@ -70,12 +70,13 @@ interface DecryptedMessage extends NostrEvent {
   error?: string;
   isSending?: boolean;
   clientFirstSeen?: number;
-  originalGiftWrap?: NostrEvent; // Store original kind 1059 event for NIP-17 to enable cache re-decryption
+  sealEvent?: NostrEvent; // Store kind 13 seal for NIP-17 (only needs 1 decrypt instead of 2)
 }
 
 interface NIP17ProcessingResult {
   processedMessage: DecryptedMessage;
   conversationPartner: string;
+  sealEvent: NostrEvent; // Return the seal so we can cache it
 }
 
 const DM_CONSTANTS = {
@@ -240,6 +241,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
     let processedMessages = 0;
     let currentSince = sinceTimestamp || 0;
 
+    console.log('[DM] loadPastNIP4Messages called with sinceTimestamp:', sinceTimestamp, '(using:', currentSince, ')');
+
     setScanProgress(prev => ({ ...prev, nip4: { current: 0, status: SCAN_STATUS_MESSAGES.NIP4_STARTING } }));
 
     while (processedMessages < DM_CONSTANTS.SCAN_TOTAL_LIMIT) {
@@ -303,6 +306,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
     const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60;
     let currentSince = sinceTimestamp ? sinceTimestamp - TWO_DAYS_IN_SECONDS : 0;
 
+    console.log('[DM] loadPastNIP17Messages called with sinceTimestamp:', sinceTimestamp, '(using:', currentSince, 'after adjusting for timestamp fuzzing)');
+
     setScanProgress(prev => ({ ...prev, nip17: { current: 0, status: SCAN_STATUS_MESSAGES.NIP17_STARTING } }));
 
     while (processedMessages < DM_CONSTANTS.SCAN_TOTAL_LIMIT) {
@@ -344,101 +349,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
     return allNIP17Events;
   }, [user, nostr]);
 
-  // Load cached messages
-  const loadPreviousCachedMessages = useCallback(async (protocol: MessageProtocol): Promise<number | undefined> => {
-    if (protocol === MESSAGE_PROTOCOL.NIP17 && !enableNIP17) return undefined;
-    if (!userPubkey) return undefined;
-
-    try {
-      let sinceTimestamp: number | undefined;
-      try {
-        const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
-        const cachedStore = await readMessagesFromDB(userPubkey);
-
-        if (cachedStore && Object.keys(cachedStore.participants).length > 0) {
-          const filteredParticipants = enableNIP17
-            ? cachedStore.participants
-            : Object.fromEntries(
-              Object.entries(cachedStore.participants).filter(([_, participant]) => !participant.hasNIP17)
-            );
-
-          if (protocol === MESSAGE_PROTOCOL.NIP04 && cachedStore.lastSync.nip4) {
-            sinceTimestamp = cachedStore.lastSync.nip4;
-          } else if (protocol === MESSAGE_PROTOCOL.NIP17 && cachedStore.lastSync.nip17) {
-            sinceTimestamp = cachedStore.lastSync.nip17;
-          }
-
-          const newState = new Map();
-
-          for (const [participantPubkey, participant] of Object.entries(filteredParticipants)) {
-            const processedMessages = await Promise.all(participant.messages.map(async (msg) => {
-              if (msg.kind === 4) {
-                // NIP-04 encrypted DM - re-decrypt on load
-                const isFromUser = msg.pubkey === user?.pubkey;
-                const recipientPTag = msg.tags?.find(([name]) => name === 'p')?.[1];
-                const otherPubkey = isFromUser ? recipientPTag : msg.pubkey;
-
-                if (otherPubkey && otherPubkey !== user?.pubkey) {
-                  const { decryptedContent, error } = await decryptNIP4Message(msg, otherPubkey);
-                  return {
-                    ...msg,
-                    id: msg.id || `missing-nip4-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content.substring(0, 16)}`,
-                    content: msg.content,
-                    decryptedContent: decryptedContent,
-                    error: error,
-                  } as NostrEvent & { decryptedContent?: string; error?: string };
-                }
-              } else if (msg.kind === 1059) {
-                // NIP-17 gift wrap - re-decrypt on load
-                const { processedMessage } = await processNIP17GiftWrap(msg);
-                return {
-                  ...processedMessage,
-                  content: msg.content, // Keep original encrypted content
-                  originalGiftWrap: msg, // Store gift wrap for next cache save
-                } as NostrEvent & { decryptedContent?: string; error?: string; originalGiftWrap?: NostrEvent };
-              } else if (msg.kind === 14 || msg.kind === 15) {
-                // Old cached format (before fix) - content is already decrypted, just use it
-                // These messages were saved without the gift wrap, but the content IS the decrypted text
-                return {
-                  ...msg,
-                  // Ensure unique ID even if two messages sent in same second
-                  id: msg.id || `missing-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content.substring(0, 16)}`,
-                  decryptedContent: msg.content, // Content is already decrypted in old format
-                } as NostrEvent & { decryptedContent?: string; error?: string };
-              }
-              // Final fallback: ensure all messages have unique IDs
-              return {
-                ...msg,
-                id: msg.id || `missing-${msg.kind}-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content?.substring(0, 16) || 'nocontent'}`,
-              };
-            }));
-
-            newState.set(participantPubkey, {
-              messages: processedMessages,
-              lastActivity: participant.lastActivity,
-              lastMessage: processedMessages.length > 0 ? processedMessages[processedMessages.length - 1] : null,
-              hasNIP4: participant.hasNIP4,
-              hasNIP17: participant.hasNIP17,
-            });
-          }
-
-          setMessages(newState);
-
-          if (cachedStore.lastSync) {
-            setLastSync(cachedStore.lastSync);
-          }
-        }
-      } catch (error) {
-        console.error('[DM] Error reading from IndexedDB:', error);
-      }
-
-      return sinceTimestamp;
-    } catch (error) {
-      console.error(`[DM] Error in Stage 1 for ${protocol}:`, error);
-      return undefined;
-    }
-  }, [enableNIP17, userPubkey]);
-
   // Query relays for messages
   const queryRelaysForMessagesSince = useCallback(async (protocol: MessageProtocol, sinceTimestamp?: number): Promise<MessageProcessingResult> => {
     if (protocol === MESSAGE_PROTOCOL.NIP17 && !enableNIP17) {
@@ -450,9 +360,12 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
 
     if (protocol === MESSAGE_PROTOCOL.NIP04) {
+      const fetchStartTime = performance.now();
       const messages = await loadPastNIP4Messages(sinceTimestamp);
+      console.log(`[DM] ⏱️ NIP-04 fetch from relay took ${(performance.now() - fetchStartTime).toFixed(0)}ms`);
 
       if (messages && messages.length > 0) {
+        const processStartTime = performance.now();
         const newState = new Map();
 
         for (const message of messages) {
@@ -490,6 +403,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
 
         mergeMessagesIntoState(newState);
+        console.log(`[DM] ⏱️ NIP-04 processing (decrypt + merge) took ${(performance.now() - processStartTime).toFixed(0)}ms`);
 
         const currentTime = Math.floor(Date.now() / 1000);
         setLastSync(prev => ({ ...prev, nip4: currentTime }));
@@ -505,19 +419,22 @@ export function DMProvider({ children, config }: DMProviderProps) {
         return { lastMessageTimestamp: sinceTimestamp, messageCount: 0 };
       }
     } else if (protocol === MESSAGE_PROTOCOL.NIP17) {
+      const fetchStartTime = performance.now();
       const messages = await loadPastNIP17Messages(sinceTimestamp);
+      console.log(`[DM] ⏱️ NIP-17 fetch from relay took ${(performance.now() - fetchStartTime).toFixed(0)}ms`);
 
       if (messages && messages.length > 0) {
+        const processStartTime = performance.now();
         const newState = new Map();
 
         for (const giftWrap of messages) {
-          const { processedMessage, conversationPartner } = await processNIP17GiftWrap(giftWrap);
+          const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(giftWrap);
 
           // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
           const messageWithAnimation: DecryptedMessage = {
             ...processedMessage,
-            content: giftWrap.content, // Keep original encrypted content for storage
-            originalGiftWrap: giftWrap, // Store the gift wrap for cache re-decryption
+            content: giftWrap.content, // Keep original encrypted content for reference
+            sealEvent, // Store just the seal (kind 13) - only 1 decrypt needed
           };
 
           // Use real message timestamp for recency check
@@ -539,6 +456,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
 
         mergeMessagesIntoState(newState);
+        console.log(`[DM] ⏱️ NIP-17 processing (decrypt + merge) took ${(performance.now() - processStartTime).toFixed(0)}ms`);
 
         const currentTime = Math.floor(Date.now() / 1000);
         setLastSync(prev => ({ ...prev, nip17: currentTime }));
@@ -556,7 +474,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
 
     return { lastMessageTimestamp: sinceTimestamp, messageCount: 0 };
-  }, [enableNIP17, userPubkey, loadPastNIP4Messages, loadPastNIP17Messages]);
+  }, [enableNIP17, userPubkey, loadPastNIP4Messages, loadPastNIP17Messages, user]);
 
   // Decrypt NIP-4 message
   const decryptNIP4Message = useCallback(async (event: NostrEvent, otherPubkey: string): Promise<DecryptionResult> => {
@@ -731,6 +649,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
           error: 'No NIP-44 decryption available',
         },
         conversationPartner: event.pubkey,
+        sealEvent: event, // Return the event itself as fallback
       };
     }
 
@@ -751,6 +670,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
             error: `Invalid Seal format - expected kind 13, got ${sealEvent.kind}`,
           },
           conversationPartner: event.pubkey,
+          sealEvent: event, // Return the gift wrap as fallback
         };
       }
 
@@ -774,6 +694,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
             error: `Invalid message format - expected kind 14 or 15, got ${messageEvent.kind}`,
           },
           conversationPartner: event.pubkey,
+          sealEvent, // Return the seal
         };
       }
 
@@ -789,6 +710,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
               error: 'Invalid recipient - malformed p tag',
             },
             conversationPartner: event.pubkey,
+            sealEvent, // Return the seal
           };
         } else {
           conversationPartner = recipient;
@@ -812,6 +734,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
           decryptedContent: messageEvent.content,
         },
         conversationPartner,
+        sealEvent, // Return the seal for caching
       };
     } catch (error) {
       nip17ErrorLogger(error as Error);
@@ -823,6 +746,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
           error: 'Failed to decrypt or parse NIP-17 message',
         },
         conversationPartner: event.pubkey,
+        sealEvent: event, // Return the gift wrap as fallback
       };
     }
   }, [user]);
@@ -833,13 +757,13 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     if (event.kind !== 1059) return;
 
-    const { processedMessage, conversationPartner } = await processNIP17GiftWrap(event);
+    const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(event);
 
     // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
     const messageWithAnimation: DecryptedMessage = {
       ...processedMessage,
-      content: event.content, // Keep original encrypted content for storage
-      originalGiftWrap: event, // Store the gift wrap for cache re-decryption
+      content: event.content, // Keep original encrypted content for reference
+      sealEvent, // Store just the seal (kind 13) - only 1 decrypt needed
     };
 
     // Use real message timestamp for recency check
@@ -957,24 +881,98 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
   }, [user, nostr, lastSync.nip17, enableNIP17, processIncomingNIP17Message]);
 
+  // Load all cached messages at once (both protocols)
+  const loadAllCachedMessages = useCallback(async (): Promise<{ nip4Since?: number; nip17Since?: number }> => {
+    if (!userPubkey) return {};
+
+    try {
+      const dbReadStart = performance.now();
+      const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
+      const cachedStore = await readMessagesFromDB(userPubkey, user?.signer);
+      console.log(`[DM] ⏱️ IndexedDB read + decrypt took ${(performance.now() - dbReadStart).toFixed(0)}ms`);
+
+      if (!cachedStore || Object.keys(cachedStore.participants).length === 0) {
+        return {};
+      }
+
+      const filteredParticipants = enableNIP17
+        ? cachedStore.participants
+        : Object.fromEntries(
+          Object.entries(cachedStore.participants).filter(([_, participant]) => !participant.hasNIP17)
+        );
+
+      const newState = new Map();
+      let messageCount = 0;
+
+      // Messages are already decrypted in the encrypted blob!
+      // Just load them directly into state
+      for (const [participantPubkey, participant] of Object.entries(filteredParticipants)) {
+        const processedMessages = participant.messages.map(msg => {
+          messageCount++;
+          // Content is already decrypted, just add the decryptedContent field
+          return {
+            ...msg,
+            id: msg.id || `missing-${msg.kind}-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content?.substring(0, 16) || 'nocontent'}`,
+            decryptedContent: msg.content, // Content is already plaintext
+          } as NostrEvent & { decryptedContent?: string };
+        });
+
+        newState.set(participantPubkey, {
+          messages: processedMessages,
+          lastActivity: participant.lastActivity,
+          lastMessage: processedMessages.length > 0 ? processedMessages[processedMessages.length - 1] : null,
+          hasNIP4: participant.hasNIP4,
+          hasNIP17: participant.hasNIP17,
+        });
+      }
+
+      console.log(`[DM] ⏱️ Loaded ${messageCount} messages from encrypted cache (no re-decryption needed!)`);
+
+      const setStateStart = performance.now();
+      setMessages(newState);
+      if (cachedStore.lastSync) {
+        setLastSync(cachedStore.lastSync);
+      }
+      console.log(`[DM] ⏱️ Setting state took ${(performance.now() - setStateStart).toFixed(0)}ms`);
+
+      return {
+        nip4Since: cachedStore.lastSync?.nip4 || undefined,
+        nip17Since: cachedStore.lastSync?.nip17 || undefined,
+      };
+    } catch (error) {
+      console.error('[DM] Error loading cached messages:', error);
+      return {};
+    }
+  }, [userPubkey, enableNIP17, user]);
+
   // Start message loading
   const startMessageLoading = useCallback(async () => {
     if (isLoading) return;
+
+    const startTime = performance.now();
+    console.log('[DM] ⏱️ Starting message loading...');
 
     setIsLoading(true);
     setLoadingPhase(LOADING_PHASES.CACHE);
 
     try {
-      const nip4SinceTimestamp = await loadPreviousCachedMessages(MESSAGE_PROTOCOL.NIP04);
-      const nip17SinceTimestamp = enableNIP17 ? await loadPreviousCachedMessages(MESSAGE_PROTOCOL.NIP17) : undefined;
+      const cacheStartTime = performance.now();
+      const { nip4Since, nip17Since } = await loadAllCachedMessages();
+      console.log(`[DM] ⏱️ Cache load took ${(performance.now() - cacheStartTime).toFixed(0)}ms`);
+
+      console.log('[DM] About to query relays with timestamps:', { nip4Since, nip17Since });
 
       setLoadingPhase(LOADING_PHASES.RELAYS);
 
-      const nip4Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4SinceTimestamp);
+      const nip4StartTime = performance.now();
+      const nip4Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since);
+      console.log(`[DM] ⏱️ NIP-04 relay query took ${(performance.now() - nip4StartTime).toFixed(0)}ms (${nip4Result.messageCount} messages)`);
 
       let nip17Result: { lastMessageTimestamp?: number; messageCount: number } | undefined;
       if (enableNIP17) {
-        nip17Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17SinceTimestamp);
+        const nip17StartTime = performance.now();
+        nip17Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17Since);
+        console.log(`[DM] ⏱️ NIP-17 relay query took ${(performance.now() - nip17StartTime).toFixed(0)}ms (${nip17Result.messageCount} messages)`);
       }
 
       const totalNewMessages = nip4Result.messageCount + (nip17Result?.messageCount || 0);
@@ -984,20 +982,24 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
       setLoadingPhase(LOADING_PHASES.SUBSCRIPTIONS);
 
+      const subStartTime = performance.now();
       await startNIP4Subscription(nip4Result.lastMessageTimestamp);
       if (enableNIP17) {
         await startNIP17Subscription(nip17Result?.lastMessageTimestamp);
       }
+      console.log(`[DM] ⏱️ Subscriptions setup took ${(performance.now() - subStartTime).toFixed(0)}ms`);
 
       setHasInitialLoadCompleted(true);
       setLoadingPhase(LOADING_PHASES.READY);
+      
+      console.log(`[DM] ⏱️ Total loading time: ${(performance.now() - startTime).toFixed(0)}ms`);
     } catch (error) {
       console.error('[DM] Error in message loading:', error);
       setLoadingPhase(LOADING_PHASES.READY);
     } finally {
       setIsLoading(false);
     }
-  }, [loadPreviousCachedMessages, queryRelaysForMessagesSince, startNIP4Subscription, startNIP17Subscription, enableNIP17]);
+  }, [loadAllCachedMessages, queryRelaysForMessagesSince, startNIP4Subscription, startNIP17Subscription, enableNIP17, isLoading]);
 
   // Clear cache and refetch from relays
   const clearCacheAndRefetch = useCallback(async () => {
@@ -1076,9 +1078,20 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // Detect relay changes and reload messages
   useEffect(() => {
     const relayChanged = previousRelayUrl.current !== appConfig.relayUrl;
+    
+    console.log('[DM] Relay change check:', {
+      previousRelay: previousRelayUrl.current,
+      currentRelay: appConfig.relayUrl,
+      relayChanged,
+      enabled,
+      userPubkey: !!userPubkey,
+      hasInitialLoadCompleted
+    });
+    
     previousRelayUrl.current = appConfig.relayUrl;
     
     if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
+      console.log('[DM] Relay changed, clearing cache and refetching...');
       clearCacheAndRefetch();
     }
   }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndRefetch]);
@@ -1108,6 +1121,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     try {
       const shouldClearCache = sessionStorage.getItem('dm-clear-cache-on-load');
       if (shouldClearCache) {
+        console.log('[DM] Hard refresh detected, clearing cache and refetching messages...');
         sessionStorage.removeItem('dm-clear-cache-on-load');
         clearCacheAndRefetch();
       }
@@ -1169,15 +1183,12 @@ export function DMProvider({ children, config }: DMProviderProps) {
       messages.forEach((participant, participantPubkey) => {
         messageStore.participants[participantPubkey] = {
           messages: participant.messages.map(msg => {
-            // For NIP-17 messages, save the original gift wrap so we can re-decrypt from cache
-            if (msg.originalGiftWrap) {
-              return msg.originalGiftWrap;
-            }
-            // For NIP-04 or other messages, save normally
+            // Store decrypted messages with plaintext content
+            // The entire store will be NIP-44 encrypted as one blob
             return {
               id: msg.id,
               pubkey: msg.pubkey,
-              content: msg.content,
+              content: msg.decryptedContent || msg.content, // Store DECRYPTED content
               created_at: msg.created_at,
               kind: msg.kind,
               tags: msg.tags,
@@ -1190,7 +1201,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         };
       });
 
-      await writeMessagesToDB(userPubkey, messageStore);
+      await writeMessagesToDB(userPubkey, messageStore, user?.signer);
 
       const currentTime = Math.floor(Date.now() / 1000);
       setLastSync(prev => ({
@@ -1200,7 +1211,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     } catch (error) {
       console.error('[DM] Error writing messages to IndexedDB:', error);
     }
-  }, [messages, userPubkey, lastSync]);
+  }, [messages, userPubkey, lastSync, user?.signer]);
 
   // Trigger debounced write
   const triggerDebouncedWrite = useCallback(() => {
