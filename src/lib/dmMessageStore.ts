@@ -6,7 +6,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 // ============================================================================
 
 const DB_NAME = 'nostr-dm-store';
-const DB_VERSION = 2; // Bump version for encrypted cache format
+const DB_VERSION = 1;
 const STORE_NAME = 'messages';
 
 // Signer interface for NIP-44 encryption/decryption
@@ -32,7 +32,6 @@ export interface MessageStore {
 
 // Wrapper for encrypted storage
 interface EncryptedStore {
-  version: 2; // Format version
   encrypted: true;
   data: string; // NIP-44 encrypted MessageStore JSON
 }
@@ -43,9 +42,7 @@ function isEncryptedStore(data: unknown): data is EncryptedStore {
     typeof data === 'object' &&
     data !== null &&
     'encrypted' in data &&
-    (data as EncryptedStore).encrypted === true &&
-    'version' in data &&
-    (data as EncryptedStore).version === 2
+    (data as EncryptedStore).encrypted === true
   );
 }
 
@@ -85,7 +82,6 @@ export async function writeMessagesToDB(
       const encrypted = await signer.nip44.encrypt(userPubkey, plaintext);
       
       const encryptedStore: EncryptedStore = {
-        version: 2,
         encrypted: true,
         data: encrypted,
       };
