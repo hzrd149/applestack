@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Send, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, AlertTriangle, Key, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -83,7 +83,7 @@ const MessageBubble = memo(({
         )}
         <div className="flex items-center gap-2 mt-1">
           <TooltipProvider>
-            <Tooltip>
+            <Tooltip delayDuration={200}>
               <TooltipTrigger asChild>
                 <span className={cn(
                   "text-xs opacity-70 cursor-default",
@@ -94,6 +94,31 @@ const MessageBubble = memo(({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">{formatFullDateTime(message.created_at)}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <span className={cn(
+                  "flex-shrink-0 opacity-50",
+                  isFromCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                )}>
+                  {message.kind === 4 ? (
+                    <Key className="h-3 w-3" />
+                  ) : (
+                    <ShieldCheck className="h-3 w-3" />
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {message.kind === 4 && "NIP-04 Kind 4 (Legacy DM)"}
+                  {message.kind === 14 && "NIP-17 Kind 14 (Private Message)"}
+                  {message.kind === 15 && "NIP-17 Kind 15 (Media)"}
+                  {message.kind !== 4 && message.kind !== 14 && message.kind !== 15 && `Kind ${message.kind}`}
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
