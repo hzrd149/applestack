@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useCa
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSendDM } from '@/hooks/useSendDM';
 import { useNostr } from '@nostrify/react';
+import { useAppContext } from '@/hooks/useAppContext';
 import { validateDMEvent } from '@/lib/dmUtils';
 import { LOADING_PHASES, type LoadingPhase, PROTOCOL_MODE, type ProtocolMode } from '@/lib/dmConstants';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -194,8 +195,12 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { sendNIP4Message, sendNIP17Message } = useSendDM();
+  const { config } = useAppContext();
 
   const userPubkey = useMemo(() => user?.pubkey, [user?.pubkey]);
+  
+  // Track relay URL to detect changes
+  const previousRelayUrl = useRef<string>(config.relayUrl);
   
   // Determine if NIP-17 is enabled based on protocol mode
   const enableNIP17 = protocolMode !== PROTOCOL_MODE.NIP04_ONLY;
@@ -989,6 +994,40 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
     }
   }, [loadPreviousCachedMessages, queryRelaysForMessagesSince, startNIP4Subscription, startNIP17Subscription, enableNIP17]);
 
+  // Clear cache and reload
+  const clearCacheAndReload = useCallback(async () => {
+    if (!enabled || !userPubkey) return;
+
+    try {
+      // Close existing subscriptions
+      if (nip4SubscriptionRef.current) {
+        nip4SubscriptionRef.current.close();
+        nip4SubscriptionRef.current = null;
+      }
+      if (nip17SubscriptionRef.current) {
+        nip17SubscriptionRef.current.close();
+        nip17SubscriptionRef.current = null;
+      }
+
+      // Clear IndexedDB cache
+      const { deleteMessagesFromDB } = await import('@/lib/dmMessageStore');
+      await deleteMessagesFromDB(userPubkey);
+
+      // Reset all state
+      setMessages(new Map());
+      setLastSync({ nip4: null, nip17: null });
+      setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
+      setScanProgress({ nip4: null, nip17: null });
+      setLoadingPhase(LOADING_PHASES.IDLE);
+      
+      // Trigger reload by setting hasInitialLoadCompleted to false
+      setHasInitialLoadCompleted(false);
+    } catch (error) {
+      console.error('[DM] Error clearing cache:', error);
+      throw error;
+    }
+  }, [enabled, userPubkey]);
+
   // Main effect to load messages
   useEffect(() => {
     if (!enabled || !userPubkey || hasInitialLoadCompleted || isLoading) return;
@@ -1028,6 +1067,15 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
     };
   }, [enabled]);
+
+  // Detect relay changes and reload messages
+  useEffect(() => {
+    if (!enabled || !userPubkey || !hasInitialLoadCompleted) return;
+    if (previousRelayUrl.current !== config.relayUrl) {
+      previousRelayUrl.current = config.relayUrl;
+      clearCacheAndReload();
+    }
+  }, [enabled, userPubkey, config.relayUrl, hasInitialLoadCompleted, clearCacheAndReload]);
 
   // Conversations summary
   const conversations = useMemo(() => {
@@ -1171,39 +1219,6 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
       console.error(`[DM] Failed to send ${protocol} message:`, error);
     }
   }, [enabled, userPubkey, addMessageToState, sendNIP4Message, sendNIP17Message]);
-
-  const clearCacheAndReload = useCallback(async () => {
-    if (!enabled || !userPubkey) return;
-
-    try {
-      // Close existing subscriptions
-      if (nip4SubscriptionRef.current) {
-        nip4SubscriptionRef.current.close();
-        nip4SubscriptionRef.current = null;
-      }
-      if (nip17SubscriptionRef.current) {
-        nip17SubscriptionRef.current.close();
-        nip17SubscriptionRef.current = null;
-      }
-
-      // Clear IndexedDB cache
-      const { deleteMessagesFromDB } = await import('@/lib/dmMessageStore');
-      await deleteMessagesFromDB(userPubkey);
-
-      // Reset all state
-      setMessages(new Map());
-      setLastSync({ nip4: null, nip17: null });
-      setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
-      setScanProgress({ nip4: null, nip17: null });
-      setLoadingPhase(LOADING_PHASES.IDLE);
-      
-      // Trigger reload by setting hasInitialLoadCompleted to false
-      setHasInitialLoadCompleted(false);
-    } catch (error) {
-      console.error('[DM] Error clearing cache:', error);
-      throw error;
-    }
-  }, [enabled, userPubkey]);
 
   const isDoingInitialLoad = isLoading && (loadingPhase === LOADING_PHASES.CACHE || loadingPhase === LOADING_PHASES.RELAYS);
 
