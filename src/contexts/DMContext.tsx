@@ -1070,9 +1070,10 @@ export function DMProvider({ children, protocolMode = PROTOCOL_MODE.NIP17_ONLY, 
 
   // Detect relay changes and reload messages
   useEffect(() => {
-    if (!enabled || !userPubkey || !hasInitialLoadCompleted) return;
-    if (previousRelayUrl.current !== config.relayUrl) {
-      previousRelayUrl.current = config.relayUrl;
+    const relayChanged = previousRelayUrl.current !== config.relayUrl;
+    previousRelayUrl.current = config.relayUrl;
+    
+    if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
       clearCacheAndReload();
     }
   }, [enabled, userPubkey, config.relayUrl, hasInitialLoadCompleted, clearCacheAndReload]);
