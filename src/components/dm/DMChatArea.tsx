@@ -67,7 +67,14 @@ const MessageBubble = memo(({
           : "bg-muted"
       )}>
         {message.error ? (
-          <p className="text-sm italic opacity-70">🔒 Failed to decrypt</p>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <p className="text-sm italic opacity-70 cursor-help">🔒 Failed to decrypt</p>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">{message.error}</p>
+            </TooltipContent>
+          </Tooltip>
         ) : isFileAttachment ? (
           // Kind 15: Use NoteContent to render files/media with imeta tags
           <div className="text-sm">
