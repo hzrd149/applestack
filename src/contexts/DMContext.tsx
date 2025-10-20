@@ -123,7 +123,7 @@ interface DMContextType {
   sendMessage: (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => Promise<void>;
   protocolMode: ProtocolMode;
   scanProgress: ScanProgressState;
-  clearCacheAndReload: () => Promise<void>;
+  clearCacheAndRefetch: () => Promise<void>;
 }
 
 const DMContext = createContext<DMContextType | null>(null);
@@ -999,8 +999,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
   }, [loadPreviousCachedMessages, queryRelaysForMessagesSince, startNIP4Subscription, startNIP17Subscription, enableNIP17]);
 
-  // Clear cache and reload
-  const clearCacheAndReload = useCallback(async () => {
+  // Clear cache and refetch from relays
+  const clearCacheAndRefetch = useCallback(async () => {
     if (!enabled || !userPubkey) return;
 
     try {
@@ -1079,9 +1079,42 @@ export function DMProvider({ children, config }: DMProviderProps) {
     previousRelayUrl.current = appConfig.relayUrl;
     
     if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
-      clearCacheAndReload();
+      clearCacheAndRefetch();
     }
-  }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndReload]);
+  }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndRefetch]);
+
+  // Detect hard refresh shortcut (Ctrl+Shift+R / Cmd+Shift+R) to clear cache
+  useEffect(() => {
+    if (!enabled || !userPubkey) return;
+
+    const handleHardRefresh = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+        try {
+          sessionStorage.setItem('dm-clear-cache-on-load', 'true');
+        } catch (error) {
+          console.warn('[DM] SessionStorage unavailable, cache won\'t clear on hard refresh:', error);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleHardRefresh);
+    return () => window.removeEventListener('keydown', handleHardRefresh);
+  }, [enabled, userPubkey]);
+
+  // Clear cache after hard refresh
+  useEffect(() => {
+    if (!enabled || !userPubkey) return;
+
+    try {
+      const shouldClearCache = sessionStorage.getItem('dm-clear-cache-on-load');
+      if (shouldClearCache) {
+        sessionStorage.removeItem('dm-clear-cache-on-load');
+        clearCacheAndRefetch();
+      }
+    } catch (error) {
+      console.warn('[DM] Could not check sessionStorage for cache clear flag:', error);
+    }
+  }, [enabled, userPubkey, clearCacheAndRefetch]);
 
   // Conversations summary
   const conversations = useMemo(() => {
@@ -1239,7 +1272,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     protocolMode,
     scanProgress,
     subscriptions,
-    clearCacheAndReload,
+    clearCacheAndRefetch,
   };
 
   return (

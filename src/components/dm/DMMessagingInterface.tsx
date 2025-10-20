@@ -21,7 +21,7 @@ export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) =
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { clearCacheAndReload } = useDMContext();
+  const { clearCacheAndRefetch } = useDMContext();
 
   // On mobile, show only one panel at a time
   const showConversationList = !isMobile || !selectedPubkey;
@@ -46,7 +46,7 @@ export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) =
               View loading status, cache info, and connection details
             </DialogDescription>
           </DialogHeader>
-          <DMStatusInfo clearCacheAndReload={clearCacheAndReload} />
+          <DMStatusInfo clearCacheAndRefetch={clearCacheAndRefetch} />
         </DialogContent>
       </Dialog>
 

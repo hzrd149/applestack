@@ -9,10 +9,10 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/useToast';
 
 interface DMStatusInfoProps {
-  clearCacheAndReload?: () => Promise<void>;
+  clearCacheAndRefetch?: () => Promise<void>;
 }
 
-export const DMStatusInfo = ({ clearCacheAndReload }: DMStatusInfoProps) => {
+export const DMStatusInfo = ({ clearCacheAndRefetch }: DMStatusInfoProps) => {
   const [isClearing, setIsClearing] = useState(false);
   const { toast } = useToast();
   const {
@@ -25,14 +25,14 @@ export const DMStatusInfo = ({ clearCacheAndReload }: DMStatusInfoProps) => {
   } = useDMContext();
 
   const handleClearCache = async () => {
-    if (!clearCacheAndReload) return;
+    if (!clearCacheAndRefetch) return;
     
     setIsClearing(true);
     try {
-      await clearCacheAndReload();
+      await clearCacheAndRefetch();
       toast({
         title: 'Cache cleared',
-        description: 'Reloading messages from relays...',
+        description: 'Refetching messages from relays...',
       });
       setIsClearing(false);
     } catch (error) {
@@ -177,14 +177,14 @@ export const DMStatusInfo = ({ clearCacheAndReload }: DMStatusInfoProps) => {
       </Card>
 
       {/* Actions */}
-      {clearCacheAndReload && (
+      {clearCacheAndRefetch && (
         <>
           <Separator />
           <div className="space-y-3">
             <div className="space-y-1">
               <p className="text-sm font-medium">Cache Management</p>
               <p className="text-xs text-muted-foreground">
-                Clear all cached messages and reload from relays. This will force a fresh sync.
+                Clear all cached messages and refetch from relays. This will force a fresh sync.
               </p>
             </div>
             <Button
@@ -201,7 +201,7 @@ export const DMStatusInfo = ({ clearCacheAndReload }: DMStatusInfoProps) => {
               ) : (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Clear Cache & Reload
+                  Clear Cache & Refetch
                 </>
               )}
             </Button>
