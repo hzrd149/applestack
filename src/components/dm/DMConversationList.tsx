@@ -18,20 +18,50 @@ interface DMConversationListProps {
   onStatusClick?: () => void;
 }
 
-// Helper function outside component to avoid recreation
-const formatConversationTime = (timestamp: number) => {
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return 'now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-  
+// Helper functions for conversation timestamps (matches Signal/WhatsApp/Telegram pattern)
+const formatConversationTime = (timestamp: number): string => {
   const date = new Date(timestamp * 1000);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${month}/${day}`;
+  const now = new Date();
+  
+  // Start of today (midnight)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  // Start of yesterday
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  
+  // Start of this week (assuming week starts on Sunday, adjust if needed)
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  
+  if (date >= todayStart) {
+    // Today: Show time (e.g., "2:45 PM")
+    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  } else if (date >= yesterdayStart) {
+    // Yesterday
+    return 'Yesterday';
+  } else if (date >= weekStart) {
+    // This week: Show day name (e.g., "Monday")
+    return date.toLocaleDateString(undefined, { weekday: 'short' });
+  } else if (date.getFullYear() === now.getFullYear()) {
+    // This year: Show month and day (e.g., "Jan 15")
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } else {
+    // Older: Show full date (e.g., "Jan 15, 2024")
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+};
+
+const formatFullDateTime = (timestamp: number): string => {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString(undefined, { 
+    weekday: 'short',
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric', 
+    hour: 'numeric', 
+    minute: '2-digit'
+  });
 };
 
 const ConversationItem = memo(({ 
@@ -93,9 +123,18 @@ const ConversationItem = memo(({
                 </TooltipProvider>
               )}
             </div>
-            <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-              {formatConversationTime(lastActivity)}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 cursor-default">
+                    {formatConversationTime(lastActivity)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p className="text-xs">{formatFullDateTime(lastActivity)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           
           <p className="text-sm text-muted-foreground truncate">
