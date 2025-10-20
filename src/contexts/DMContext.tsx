@@ -956,47 +956,69 @@ export function DMProvider({ children, config }: DMProviderProps) {
     setLoadingPhase(LOADING_PHASES.CACHE);
 
     try {
+      // ===== PHASE 1: Load cache and show immediately =====
       const cacheStartTime = performance.now();
       const { nip4Since, nip17Since } = await loadAllCachedMessages();
       console.log(`[DM] ⏱️ Cache load took ${(performance.now() - cacheStartTime).toFixed(0)}ms`);
+      
+      // Mark as completed BEFORE releasing isLoading to prevent re-trigger
+      setHasInitialLoadCompleted(true);
+      
+      // Show cached messages immediately! Don't wait for relays
+      setLoadingPhase(LOADING_PHASES.READY);
+      setIsLoading(false);
+      const cacheOnlyTime = performance.now() - startTime;
+      console.log(`[DM] ⏱️ UI ready (cache only): ${cacheOnlyTime.toFixed(0)}ms`);
 
-      console.log('[DM] About to query relays with timestamps:', { nip4Since, nip17Since });
-
+      // ===== PHASE 2: Query relays in background (non-blocking, parallel) =====
+      console.log('[DM] 🔄 Querying relays in background...', { nip4Since, nip17Since });
       setLoadingPhase(LOADING_PHASES.RELAYS);
 
-      const nip4StartTime = performance.now();
-      const nip4Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since);
-      console.log(`[DM] ⏱️ NIP-04 relay query took ${(performance.now() - nip4StartTime).toFixed(0)}ms (${nip4Result.messageCount} messages)`);
+      const relayStartTime = performance.now();
+      
+      // Run NIP-04 and NIP-17 queries IN PARALLEL
+      const [nip4Result, nip17Result] = await Promise.all([
+        (async () => {
+          const nip4StartTime = performance.now();
+          const result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since);
+          console.log(`[DM] ⏱️ NIP-04 relay query took ${(performance.now() - nip4StartTime).toFixed(0)}ms (${result.messageCount} messages)`);
+          return result;
+        })(),
+        enableNIP17 ? (async () => {
+          const nip17StartTime = performance.now();
+          const result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17Since);
+          console.log(`[DM] ⏱️ NIP-17 relay query took ${(performance.now() - nip17StartTime).toFixed(0)}ms (${result.messageCount} messages)`);
+          return result;
+        })() : Promise.resolve({ lastMessageTimestamp: undefined, messageCount: 0 })
+      ]);
 
-      let nip17Result: { lastMessageTimestamp?: number; messageCount: number } | undefined;
-      if (enableNIP17) {
-        const nip17StartTime = performance.now();
-        nip17Result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17Since);
-        console.log(`[DM] ⏱️ NIP-17 relay query took ${(performance.now() - nip17StartTime).toFixed(0)}ms (${nip17Result.messageCount} messages)`);
-      }
+      const totalRelayTime = performance.now() - relayStartTime;
+      console.log(`[DM] ⏱️ Total relay queries (parallel): ${totalRelayTime.toFixed(0)}ms`);
 
       const totalNewMessages = nip4Result.messageCount + (nip17Result?.messageCount || 0);
       if (totalNewMessages > 0) {
         setShouldSaveImmediately(true);
+        console.log(`[DM] 📥 Received ${totalNewMessages} new messages from relays`);
       }
 
+      // ===== PHASE 3: Setup subscriptions =====
       setLoadingPhase(LOADING_PHASES.SUBSCRIPTIONS);
 
       const subStartTime = performance.now();
-      await startNIP4Subscription(nip4Result.lastMessageTimestamp);
-      if (enableNIP17) {
-        await startNIP17Subscription(nip17Result?.lastMessageTimestamp);
-      }
+      await Promise.all([
+        startNIP4Subscription(nip4Result.lastMessageTimestamp),
+        enableNIP17 ? startNIP17Subscription(nip17Result?.lastMessageTimestamp) : Promise.resolve()
+      ]);
       console.log(`[DM] ⏱️ Subscriptions setup took ${(performance.now() - subStartTime).toFixed(0)}ms`);
 
-      setHasInitialLoadCompleted(true);
       setLoadingPhase(LOADING_PHASES.READY);
       
-      console.log(`[DM] ⏱️ Total loading time: ${(performance.now() - startTime).toFixed(0)}ms`);
+      const totalTime = performance.now() - startTime;
+      console.log(`[DM] ⏱️ Total loading time (cache + background sync): ${totalTime.toFixed(0)}ms`);
     } catch (error) {
       console.error('[DM] Error in message loading:', error);
+      setHasInitialLoadCompleted(true);
       setLoadingPhase(LOADING_PHASES.READY);
-    } finally {
       setIsLoading(false);
     }
   }, [loadAllCachedMessages, queryRelaysForMessagesSince, startNIP4Subscription, startNIP17Subscription, enableNIP17, isLoading]);
