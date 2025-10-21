@@ -48,6 +48,9 @@ const ConversationItemComponent = ({
     ? '🔒 Encrypted message' 
     : lastMessage?.decryptedContent || 'No messages yet';
 
+  // Show skeleton only for name/avatar while loading (we already have message data)
+  const isLoadingProfile = author.isLoading && !metadata;
+
   return (
     <button
       onClick={onClick}
@@ -57,15 +60,23 @@ const ConversationItemComponent = ({
       )}
     >
       <div className="flex items-start gap-3 max-w-full">
-        <Avatar className="h-10 w-10 flex-shrink-0">
-          <AvatarImage src={avatarUrl} alt={displayName} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
+        {isLoadingProfile ? (
+          <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+        ) : (
+          <Avatar className="h-10 w-10 flex-shrink-0">
+            <AvatarImage src={avatarUrl} alt={displayName} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+        )}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="font-medium text-sm truncate">{displayName}</span>
+              {isLoadingProfile ? (
+                <Skeleton className="h-[1.25rem] w-24" />
+              ) : (
+                <span className="font-medium text-sm truncate">{displayName}</span>
+              )}
               {hasNIP4Messages && (
                 <TooltipProvider>
                   <Tooltip>
