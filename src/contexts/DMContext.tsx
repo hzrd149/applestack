@@ -373,7 +373,7 @@ function createImetaTags(attachments: FileAttachment[] = []): string[][] {
 // ============================================================================
 
 export function DMProvider({ children, config }: DMProviderProps) {
-  const { enabled = true, protocolMode = PROTOCOL_MODE.NIP17_ONLY } = config || {};
+  const { enabled = false, protocolMode = PROTOCOL_MODE.NIP17_ONLY } = config || {};
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: createEvent } = useNostrPublish();
