@@ -124,7 +124,12 @@ interface DMContextType {
   lastSync: LastSyncData;
   subscriptions: SubscriptionStatus;
   conversations: ConversationSummary[];
-  sendMessage: (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => Promise<void>;
+  sendMessage: (params: { 
+    recipientPubkey: string; 
+    content: string; 
+    protocol?: MessageProtocol;
+    attachments?: FileAttachment[];
+  }) => Promise<void>;
   protocolMode: ProtocolMode;
   scanProgress: ScanProgressState;
   clearCacheAndRefetch: () => Promise<void>;
@@ -203,7 +208,7 @@ interface DMProviderProps {
 // Message Sending Types and Helpers (Internal)
 // ============================================================================
 
-interface FileAttachment {
+export interface FileAttachment {
   url: string;
   mimeType: string;
   size: number;
@@ -1469,10 +1474,15 @@ export function DMProvider({ children, config }: DMProviderProps) {
   }, [enabled, messages, shouldSaveImmediately, writeAllMessagesToStore, triggerDebouncedWrite]);
 
   // Send message
-  const sendMessage = useCallback(async (params: { recipientPubkey: string; content: string; protocol?: MessageProtocol }) => {
+  const sendMessage = useCallback(async (params: { 
+    recipientPubkey: string; 
+    content: string; 
+    protocol?: MessageProtocol;
+    attachments?: FileAttachment[];
+  }) => {
     if (!enabled) return;
     
-    const { recipientPubkey, content, protocol = MESSAGE_PROTOCOL.NIP04 } = params;
+    const { recipientPubkey, content, protocol = MESSAGE_PROTOCOL.NIP04, attachments } = params;
     if (!userPubkey) return;
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;
@@ -1493,9 +1503,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     try {
       if (protocol === MESSAGE_PROTOCOL.NIP04) {
-        await sendNIP4Message.mutateAsync({ recipientPubkey, content });
+        await sendNIP4Message.mutateAsync({ recipientPubkey, content, attachments });
       } else if (protocol === MESSAGE_PROTOCOL.NIP17) {
-        await sendNIP17Message.mutateAsync({ recipientPubkey, content });
+        await sendNIP17Message.mutateAsync({ recipientPubkey, content, attachments });
       }
     } catch (error) {
       console.error(`[DM] Failed to send ${protocol} message:`, error);
