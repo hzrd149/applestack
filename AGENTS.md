@@ -19,6 +19,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
 - `/src/components/`: UI components including NostrProvider for Nostr integration
   - `/src/components/ui/`: shadcn/ui components (48+ components available)
   - `/src/components/auth/`: Authentication-related components (LoginArea, LoginDialog, etc.)
+  - `/src/components/dm/`: Direct messaging UI components (DMMessagingInterface, DMConversationList, DMChatArea)
   - Zap components: `ZapButton`, `ZapDialog`, `WalletModal` for Lightning payments
 - `/src/hooks/`: Custom hooks including:
   - `useNostr`: Core Nostr protocol integration
@@ -38,11 +39,11 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useNWC`: Nostr Wallet Connect connection management
   - `useNWCContext`: Access NWC context provider
   - `useShakespeare`: AI chat completions with Shakespeare AI API
-  - `useDMContext`: Direct messaging system (NIP-04 & NIP-17)
-  - `useConversationMessages`: Paginated messages for specific conversations
 - `/src/pages/`: Page components used by React Router (Index, NotFound)
 - `/src/lib/`: Utility functions and shared logic
 - `/src/contexts/`: React context providers (AppContext, NWCContext, DMContext)
+  - `useDMContext`: Hook exported from DMContext for direct messaging (NIP-04 & NIP-17)
+  - `useConversationMessages`: Hook exported from DMContext for paginated messages
 - `/src/test/`: Testing utilities including TestApp component
 - `/public/`: Static assets
 - `App.tsx`: Main app component with provider setup
@@ -750,7 +751,7 @@ The `EditProfileForm` component displays just the form. It requires no props, an
 
 ### Direct Messaging (NIP-04 & NIP-17)
 
-The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols.
+The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols. **The system is disabled by default** - enable it by passing `enabled: true` in the config.
 
 **Quick Setup:**
 
@@ -758,8 +759,11 @@ The project includes a complete direct messaging system with real-time updates, 
 import { DMProvider } from '@/contexts/DMContext';
 import { PROTOCOL_MODE } from '@/lib/dmConstants';
 
-// Wrap your app with DMProvider
-<DMProvider config={{ protocolMode: PROTOCOL_MODE.NIP17_ONLY }}>
+// Enable messaging in your app
+<DMProvider config={{ 
+  enabled: true, // System is disabled by default
+  protocolMode: PROTOCOL_MODE.NIP17_ONLY 
+}}>
   {children}
 </DMProvider>
 ```
@@ -815,6 +819,38 @@ const { messages, hasMoreMessages, loadEarlierMessages } = useConversationMessag
 - **Cache-First Loading**: Instant UI with background sync
 
 For complete implementation details, file attachments, and advanced features, see **`docs/NOSTR_DIRECT_MESSAGES.md`**.
+
+### Direct Messaging UI Component
+
+To include a complete messaging interface in your app, use the `DMMessagingInterface` component:
+
+```tsx
+import { DMMessagingInterface } from "@/components/dm/DMMessagingInterface";
+
+function MessagesPage() {
+  return (
+    <div className="container mx-auto p-4 h-screen">
+      <DMMessagingInterface />
+    </div>
+  );
+}
+```
+
+The `DMMessagingInterface` component provides a complete messaging UI with:
+- Conversation list with Active/Requests tabs
+- Message thread view with pagination
+- Compose area with file upload support
+- Real-time message updates
+- Mobile-responsive layout (shows one panel at a time on mobile)
+
+It requires no props and works automatically when wrapped in `DMProvider`. 
+
+**For custom layouts**, individual components are available:
+- `DMConversationList` - Conversation sidebar with tabs
+- `DMChatArea` - Message thread and compose area
+- `DMStatusInfo` - Debug/status panel
+
+See `docs/NOSTR_DIRECT_MESSAGES.md` for custom layout examples.
 
 ### Uploading Files on Nostr
 

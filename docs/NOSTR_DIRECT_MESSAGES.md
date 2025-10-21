@@ -4,7 +4,9 @@ This project includes a complete direct messaging system supporting both NIP-04 
 
 ## Quick Start
 
-### 1. Wrap Your App with DMProvider
+### 1. Enable Direct Messaging
+
+The `DMProvider` is already added to your app, but **disabled by default**. To enable messaging, pass `enabled: true` in the config:
 
 ```tsx
 import { DMProvider } from '@/contexts/DMContext';
@@ -12,17 +14,24 @@ import { PROTOCOL_MODE } from '@/lib/dmConstants';
 
 function App() {
   return (
-    <DMProvider config={{ protocolMode: PROTOCOL_MODE.NIP17_ONLY }}>
+    <DMProvider config={{ 
+      enabled: true, // Enable the DM system
+      protocolMode: PROTOCOL_MODE.NIP17_ONLY 
+    }}>
       {/* Your app components */}
     </DMProvider>
   );
 }
 ```
 
-**Protocol Modes:**
-- `PROTOCOL_MODE.NIP04_ONLY` - Legacy encryption only
-- `PROTOCOL_MODE.NIP17_ONLY` - Modern private messages (recommended)
-- `PROTOCOL_MODE.BOTH` - Support both protocols
+**Config Options:**
+- `enabled` (boolean, default: `false`) - Enable/disable entire DM system. When false, no messages are loaded, stored, or processed.
+- `protocolMode` (ProtocolMode, default: `PROTOCOL_MODE.NIP17_ONLY`) - Which protocols to support:
+  - `PROTOCOL_MODE.NIP04_ONLY` - Legacy encryption only
+  - `PROTOCOL_MODE.NIP17_ONLY` - Modern private messages (recommended)
+  - `PROTOCOL_MODE.BOTH` - Support both protocols (for backwards compatibility)
+
+**Note**: The DM system uses domain-based IndexedDB naming (`nostr-dm-store-${hostname}`) to prevent conflicts between multiple apps on the same domain.
 
 ### 2. Send Messages
 
@@ -327,4 +336,76 @@ function SettingsButton() {
 - **Local Encryption**: IndexedDB storage encrypted with user's NIP-44 key
 - **Ephemeral Keys**: Random keys for NIP-17 gift wraps (sender anonymity)
 - **No Plaintext**: Decrypted content never persisted unencrypted
+- **Domain Isolation**: IndexedDB databases are namespaced by hostname to prevent data conflicts
+
+## Building Custom Messaging UIs
+
+For advanced use cases, you can use the individual DM components to build custom layouts:
+
+### Available Components
+
+**`DMConversationList`** - Conversation sidebar with tabs
+```tsx
+import { DMConversationList } from '@/components/dm/DMConversationList';
+
+<DMConversationList
+  selectedPubkey={selectedPubkey}
+  onSelectConversation={(pubkey) => setSelectedPubkey(pubkey)}
+  onStatusClick={() => setShowStatus(true)} // optional
+  className="h-full"
+/>
+```
+
+**`DMChatArea`** - Message thread and compose area
+```tsx
+import { DMChatArea } from '@/components/dm/DMChatArea';
+
+<DMChatArea
+  pubkey={selectedPubkey}
+  onBack={() => setSelectedPubkey(null)} // optional, for mobile back button
+  className="h-full"
+/>
+```
+
+**`DMStatusInfo`** - Debug/status panel
+```tsx
+import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
+
+<DMStatusInfo clearCacheAndRefetch={clearCacheAndRefetch} />
+```
+
+### Custom Layout Example
+
+```tsx
+import { useState } from 'react';
+import { DMConversationList } from '@/components/dm/DMConversationList';
+import { DMChatArea } from '@/components/dm/DMChatArea';
+
+function CustomMessagingLayout() {
+  const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
+
+  return (
+    <div className="flex h-screen">
+      {/* Custom sidebar */}
+      <aside className="w-64 border-r">
+        <DMConversationList
+          selectedPubkey={selectedPubkey}
+          onSelectConversation={setSelectedPubkey}
+        />
+      </aside>
+
+      {/* Custom main area */}
+      <main className="flex-1">
+        {selectedPubkey ? (
+          <DMChatArea pubkey={selectedPubkey} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p>Select a conversation to start messaging</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+```
 
