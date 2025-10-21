@@ -20,21 +20,23 @@ interface DMConversationListProps {
   onStatusClick?: () => void;
 }
 
-const ConversationItem = memo(({ 
+interface ConversationItemProps {
+  pubkey: string;
+  isSelected: boolean;
+  onClick: () => void;
+  lastMessage: { decryptedContent?: string; error?: string } | null;
+  lastActivity: number;
+  hasNIP4Messages: boolean;
+}
+
+const ConversationItemComponent = ({ 
   pubkey, 
   isSelected, 
   onClick,
   lastMessage,
   lastActivity,
   hasNIP4Messages
-}: { 
-  pubkey: string; 
-  isSelected: boolean; 
-  onClick: () => void;
-  lastMessage: { decryptedContent?: string; error?: string } | null;
-  lastActivity: number;
-  hasNIP4Messages: boolean;
-}) => {
+}: ConversationItemProps) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
 
@@ -100,8 +102,9 @@ const ConversationItem = memo(({
       </div>
     </button>
   );
-});
+};
 
+const ConversationItem = memo(ConversationItemComponent);
 ConversationItem.displayName = 'ConversationItem';
 
 const ConversationListSkeleton = () => {
@@ -230,7 +233,7 @@ export const DMConversationList = ({
             <p className="text-sm">No {activeTab} conversations</p>
           </div>
         ) : (
-          <ScrollArea key={activeTab} className="h-full block">
+          <ScrollArea className="h-full block">
             <div className="block w-full px-2 py-2 space-y-1">
               {currentConversations.map((conversation) => (
                 <ConversationItem
