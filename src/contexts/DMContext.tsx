@@ -116,6 +116,21 @@ const createErrorLogger = (name: string) => {
 
 const nip17ErrorLogger = createErrorLogger('NIP-17');
 
+/**
+ * Direct Messaging context interface providing access to all DM functionality.
+ * 
+ * @property messages - Raw message state (Map of pubkey -> participant data)
+ * @property isLoading - True during initial load phases
+ * @property loadingPhase - Current loading phase (CACHE, RELAYS, SUBSCRIPTIONS, READY, IDLE)
+ * @property isDoingInitialLoad - True only during cache/relay loading (not subscriptions)
+ * @property lastSync - Unix timestamps of last successful sync for each protocol
+ * @property subscriptions - Connection status for real-time message subscriptions
+ * @property conversations - Array of conversation summaries sorted by last activity
+ * @property sendMessage - Send an encrypted direct message (NIP-04 or NIP-17)
+ * @property protocolMode - Current protocol mode (NIP04_ONLY, NIP17_ONLY, or BOTH)
+ * @property scanProgress - Progress info for large message history scans
+ * @property clearCacheAndRefetch - Clear IndexedDB cache and reload all messages from relays
+ */
 interface DMContextType {
   messages: MessagesState;
   isLoading: boolean;
@@ -137,6 +152,41 @@ interface DMContextType {
 
 const DMContext = createContext<DMContextType | null>(null);
 
+/**
+ * Hook to access the direct messaging system.
+ * 
+ * Provides access to conversations, message sending, loading states, and cache management.
+ * Must be used within a DMProvider.
+ * 
+ * @example
+ * ```tsx
+ * import { useDMContext } from '@/contexts/DMContext';
+ * import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
+ * 
+ * function MyComponent() {
+ *   const { conversations, sendMessage, isLoading } = useDMContext();
+ * 
+ *   // Send a message
+ *   await sendMessage({
+ *     recipientPubkey: 'hex-pubkey',
+ *     content: 'Hello!',
+ *     protocol: MESSAGE_PROTOCOL.NIP17
+ *   });
+ * 
+ *   // Display conversations
+ *   return (
+ *     <div>
+ *       {isLoading ? 'Loading...' : conversations.map(c => (
+ *         <div key={c.pubkey}>{c.lastMessage?.decryptedContent}</div>
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
+ * 
+ * @returns DMContextType - The direct messaging context
+ * @throws Error if used outside DMProvider
+ */
 export function useDMContext(): DMContextType {
   const context = useContext(DMContext);
   if (!context) {
@@ -147,6 +197,42 @@ export function useDMContext(): DMContextType {
 
 const MESSAGES_PER_PAGE = 25;
 
+/**
+ * Hook to access paginated messages for a specific conversation.
+ * 
+ * Returns the most recent messages (default 25) with the ability to load earlier messages.
+ * Automatically resets to default page size when switching conversations.
+ * 
+ * @example
+ * ```tsx
+ * import { useConversationMessages } from '@/contexts/DMContext';
+ * 
+ * function MessageThread({ recipientPubkey }: { recipientPubkey: string }) {
+ *   const { 
+ *     messages, 
+ *     hasMoreMessages, 
+ *     loadEarlierMessages,
+ *     totalCount 
+ *   } = useConversationMessages(recipientPubkey);
+ * 
+ *   return (
+ *     <div>
+ *       {hasMoreMessages && (
+ *         <button onClick={loadEarlierMessages}>
+ *           Load Earlier ({totalCount - messages.length} more)
+ *         </button>
+ *       )}
+ *       {messages.map(msg => (
+ *         <div key={msg.id}>{msg.decryptedContent}</div>
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
+ * 
+ * @param conversationId - The pubkey of the conversation participant
+ * @returns Paginated message data with loading function
+ */
 export function useConversationMessages(conversationId: string) {
   const { messages: allMessages } = useDMContext();
   const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE);
@@ -208,6 +294,41 @@ interface DMProviderProps {
 // Message Sending Types and Helpers (Internal)
 // ============================================================================
 
+/**
+ * File attachment for direct messages (NIP-92 compatible).
+ * 
+ * All fields are required. Use with `useUploadFile` hook to upload files
+ * and generate the proper tags format.
+ * 
+ * @example
+ * ```tsx
+ * import { useUploadFile } from '@/hooks/useUploadFile';
+ * import type { FileAttachment } from '@/contexts/DMContext';
+ * 
+ * const { mutateAsync: uploadFile } = useUploadFile();
+ * 
+ * const tags = await uploadFile(file);
+ * const attachment: FileAttachment = {
+ *   url: tags[0][1],
+ *   mimeType: file.type,
+ *   size: file.size,
+ *   name: file.name,
+ *   tags: tags
+ * };
+ * 
+ * await sendMessage({
+ *   recipientPubkey: 'hex-pubkey',
+ *   content: 'Check out this file!',
+ *   attachments: [attachment]
+ * });
+ * ```
+ * 
+ * @property url - Blossom server URL where file is hosted
+ * @property mimeType - MIME type of the file (e.g., 'image/png')
+ * @property size - File size in bytes
+ * @property name - Original filename
+ * @property tags - NIP-94 file metadata tags (includes hashes)
+ */
 export interface FileAttachment {
   url: string;
   mimeType: string;

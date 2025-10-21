@@ -38,9 +38,11 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useNWC`: Nostr Wallet Connect connection management
   - `useNWCContext`: Access NWC context provider
   - `useShakespeare`: AI chat completions with Shakespeare AI API
+  - `useDMContext`: Direct messaging system (NIP-04 & NIP-17)
+  - `useConversationMessages`: Paginated messages for specific conversations
 - `/src/pages/`: Page components used by React Router (Index, NotFound)
 - `/src/lib/`: Utility functions and shared logic
-- `/src/contexts/`: React context providers (AppContext, NWCContext)
+- `/src/contexts/`: React context providers (AppContext, NWCContext, DMContext)
 - `/src/test/`: Testing utilities including TestApp component
 - `/public/`: Static assets
 - `App.tsx`: Main app component with provider setup
@@ -108,6 +110,8 @@ The project includes a **`docs/`** directory containing specialized documentatio
 - **`docs/NOSTR_COMMENTS.md`**: Read when implementing comment systems, adding discussion features to posts/articles, or building community interaction features.
 
 - **`docs/NOSTR_INFINITE_SCROLL.md`**: Read when building feed interfaces, implementing pagination for Nostr events, or creating social media-style infinite scroll experiences.
+
+- **`docs/NOSTR_DIRECT_MESSAGES.md`**: Read when implementing direct messaging features, building chat interfaces, or working with encrypted peer-to-peer communication (NIP-04 and NIP-17).
 
 ## System Prompt Management
 
@@ -743,6 +747,74 @@ function EditProfilePage() {
 ```
 
 The `EditProfileForm` component displays just the form. It requires no props, and will "just work" automatically.
+
+### Direct Messaging (NIP-04 & NIP-17)
+
+The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols.
+
+**Quick Setup:**
+
+```tsx
+import { DMProvider } from '@/contexts/DMContext';
+import { PROTOCOL_MODE } from '@/lib/dmConstants';
+
+// Wrap your app with DMProvider
+<DMProvider config={{ protocolMode: PROTOCOL_MODE.NIP17_ONLY }}>
+  {children}
+</DMProvider>
+```
+
+**Send Messages:**
+
+```tsx
+import { useDMContext } from '@/contexts/DMContext';
+import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
+
+function MyComponent() {
+  const { sendMessage } = useDMContext();
+
+  await sendMessage({
+    recipientPubkey: 'hex-pubkey',
+    content: 'Hello!',
+    protocol: MESSAGE_PROTOCOL.NIP17 // or NIP04
+  });
+}
+```
+
+**Display Conversations:**
+
+```tsx
+const { conversations, isLoading } = useDMContext();
+
+// conversations = Array of conversation summaries with:
+// - pubkey: The other participant
+// - lastMessage: Most recent message
+// - lastActivity: Unix timestamp
+// - isKnown: User has sent messages
+// - isRequest: Only received messages
+```
+
+**Display Messages:**
+
+```tsx
+import { useConversationMessages } from '@/contexts/DMContext';
+
+const { messages, hasMoreMessages, loadEarlierMessages } = useConversationMessages(pubkey);
+
+// messages = Paginated array of messages (25/page)
+// hasMoreMessages = true if earlier messages available
+// loadEarlierMessages() = Load next 25 messages
+```
+
+**Features:**
+- **Dual Protocol Support**: NIP-04 (legacy) and NIP-17 (private with gift wrapping)
+- **Real-time Updates**: WebSocket subscriptions for live messages
+- **Encrypted Storage**: IndexedDB with NIP-44 encryption
+- **Optimistic UI**: Instant message display with background confirmation
+- **File Attachments**: Full support with `attachments` parameter
+- **Cache-First Loading**: Instant UI with background sync
+
+For complete implementation details, file attachments, and advanced features, see **`docs/NOSTR_DIRECT_MESSAGES.md`**.
 
 ### Uploading Files on Nostr
 
