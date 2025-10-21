@@ -1222,8 +1222,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
     if (!userPubkey) return {};
 
     try {
-      const dbReadStart = performance.now();
       const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
+      
+      const dbReadStart = performance.now();
       const cachedStore = await readMessagesFromDB(userPubkey, user?.signer);
       console.log(`[DM] ⏱️ IndexedDB read + decrypt took ${(performance.now() - dbReadStart).toFixed(0)}ms`);
 
@@ -1521,6 +1522,12 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // Write to store
   const writeAllMessagesToStore = useCallback(async () => {
     if (!userPubkey) return;
+    
+    // Don't try to save if user/signer is not available
+    if (!user?.signer) {
+      console.log('[DM] Skipping cache write - no signer available');
+      return;
+    }
 
     try {
       const { writeMessagesToDB } = await import('@/lib/dmMessageStore');

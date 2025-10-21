@@ -82,25 +82,29 @@ export async function writeMessagesToDB(
   try {
     const db = await openDatabase();
     
-    // If signer is available, encrypt the entire store
-    if (signer?.nip44) {
-      const plaintext = JSON.stringify(messageStore);
-      const encrypted = await signer.nip44.encrypt(userPubkey, plaintext);
-      
-      const encryptedStore: EncryptedStore = {
-        encrypted: true,
-        data: encrypted,
-      };
-      
-      await db.put(STORE_NAME, encryptedStore, userPubkey);
-      console.log('[MessageStore] ✅ Encrypted cache saved');
-    } else {
-      // Fallback: save unencrypted (for backward compatibility)
-      await db.put(STORE_NAME, messageStore, userPubkey);
-      console.log('[MessageStore] ⚠️ Unencrypted cache saved (no signer)');
+    // Always require encryption - if signer is not available, don't store
+    if (!signer?.nip44) {
+      console.warn('[MessageStore] ⚠️ Cannot save: NIP-44 signer not available');
+      return;
     }
+
+    const plaintext = JSON.stringify(messageStore);
+    const encrypted = await signer.nip44.encrypt(userPubkey, plaintext);
+    
+    // Validate that encryption returned a string
+    if (typeof encrypted !== 'string' || !encrypted) {
+      throw new Error('NIP-44 encryption failed: expected string result, got ' + typeof encrypted);
+    }
+    
+    const encryptedStore: EncryptedStore = {
+      encrypted: true,
+      data: encrypted,
+    };
+    
+    await db.put(STORE_NAME, encryptedStore, userPubkey);
+    console.log('[MessageStore] ✅ Encrypted cache saved');
   } catch (error) {
-    console.error('[MessageStore] Error writing to IndexedDB:', error);
+    console.error('[MessageStore] ❌ Error writing to IndexedDB:', error);
     throw error;
   }
 }
