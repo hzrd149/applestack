@@ -5,7 +5,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 // IndexedDB Schema
 // ============================================================================
 
-const DB_NAME = 'nostr-dm-store';
+// Use domain-based naming to avoid conflicts between apps on same domain
+const getDBName = () => {
+  // Use hostname for unique DB per app (e.g., 'nostr-dm-store-localhost', 'nostr-dm-store-myapp.com')
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'default';
+  return `nostr-dm-store-${hostname}`;
+};
+const DB_NAME = getDBName();
 const DB_VERSION = 1;
 const STORE_NAME = 'messages';
 
