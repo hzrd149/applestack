@@ -74,6 +74,7 @@ interface DecryptedMessage extends NostrEvent {
   isSending?: boolean;
   clientFirstSeen?: number;
   sealEvent?: NostrEvent; // Store kind 13 seal for NIP-17 (only needs 1 decrypt instead of 2)
+  originalGiftWrapId?: string; // Store gift wrap ID for NIP-17 deduplication
 }
 
 interface NIP17ProcessingResult {
@@ -766,11 +767,16 @@ export function DMProvider({ children, config }: DMProviderProps) {
         for (const giftWrap of messages) {
           const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(giftWrap);
 
-          // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
+          // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
           const messageWithAnimation: DecryptedMessage = {
-            ...processedMessage,
-            content: giftWrap.content, // Keep original encrypted content for reference
-            sealEvent, // Store just the seal (kind 13) - only 1 decrypt needed
+            ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
+            created_at: processedMessage.created_at, // Use real timestamp from inner message
+            decryptedEvent: {
+              ...processedMessage,
+              content: processedMessage.decryptedContent,
+            } as NostrEvent,
+            decryptedContent: processedMessage.decryptedContent,
+            originalGiftWrapId: giftWrap.id, // Store gift wrap ID for deduplication
           };
 
           // Use real message timestamp for recency check
@@ -859,8 +865,14 @@ export function DMProvider({ children, config }: DMProviderProps) {
       newState.forEach((value, key) => {
         const existing = finalMap.get(key);
         if (existing) {
-          const existingMessageIds = new Set(existing.messages.map(msg => msg.id));
-          const newMessages = value.messages.filter(msg => !existingMessageIds.has(msg.id));
+          // For NIP-17 messages with originalGiftWrapId, dedupe by gift wrap ID
+          // For NIP-04 and cached NIP-17 messages, dedupe by message ID
+          const existingMessageIds = new Set(
+            existing.messages.map(msg => msg.originalGiftWrapId || msg.id)
+          );
+          const newMessages = value.messages.filter(msg => 
+            !existingMessageIds.has(msg.originalGiftWrapId || msg.id)
+          );
 
           const mergedMessages = [...existing.messages, ...newMessages];
           mergedMessages.sort((a, b) => a.created_at - b.created_at);
@@ -893,7 +905,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const existing = newMap.get(conversationPartner);
 
       if (existing) {
-        if (existing.messages.some(msg => msg.id === message.id)) {
+        // For NIP-17 messages with originalGiftWrapId, dedupe by gift wrap ID
+        // For NIP-04 and cached NIP-17 messages, dedupe by message ID
+        const messageId = message.originalGiftWrapId || message.id;
+        if (existing.messages.some(msg => (msg.originalGiftWrapId || msg.id) === messageId)) {
           return prev;
         }
 
@@ -1066,11 +1081,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
         processedMessage: {
           ...messageEvent,
           id: messageEvent.id || `missing-nip17-inner-${messageEvent.created_at}-${messageEvent.pubkey.substring(0, 8)}-${messageEvent.content.substring(0, 16)}`,
-          content: event.content,
-          decryptedContent: messageEvent.content,
+          decryptedContent: messageEvent.content, // Plaintext from inner message
         },
         conversationPartner,
-        sealEvent, // Return the seal for caching
+        sealEvent, // Return the seal (kind 13) for storage
       };
     } catch (error) {
       nip17ErrorLogger(error as Error);
@@ -1095,11 +1109,16 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(event);
 
-    // Use the real message (kind 14) timestamp, not the randomized gift wrap timestamp
+    // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
     const messageWithAnimation: DecryptedMessage = {
-      ...processedMessage,
-      content: event.content, // Keep original encrypted content for reference
-      sealEvent, // Store just the seal (kind 13) - only 1 decrypt needed
+      ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
+      created_at: processedMessage.created_at, // Use real timestamp from inner message
+      decryptedEvent: {
+        ...processedMessage,
+        content: processedMessage.decryptedContent,
+      } as NostrEvent,
+      decryptedContent: processedMessage.decryptedContent,
+      originalGiftWrapId: event.id, // Store gift wrap ID for deduplication
     };
 
     // Use real message timestamp for recency check
@@ -1225,7 +1244,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
       
       const dbReadStart = performance.now();
-      const cachedStore = await readMessagesFromDB(userPubkey, user?.signer);
+      const cachedStore = await readMessagesFromDB(userPubkey);
       console.log(`[DM] ⏱️ IndexedDB read + decrypt took ${(performance.now() - dbReadStart).toFixed(0)}ms`);
 
       if (!cachedStore || Object.keys(cachedStore.participants).length === 0) {
@@ -1241,18 +1260,55 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const newState = new Map();
       let messageCount = 0;
 
-      // Messages are already decrypted in the encrypted blob!
-      // Just load them directly into state
+      // Decrypt each message individually (they're stored in original encrypted form)
+      const decryptStartTime = performance.now();
       for (const [participantPubkey, participant] of Object.entries(filteredParticipants)) {
-        const processedMessages = participant.messages.map(msg => {
+        const processedMessages = await Promise.all(participant.messages.map(async (msg) => {
           messageCount++;
-          // Content is already decrypted, just add the decryptedContent field
+          
+          // Decrypt based on message kind
+          let decryptedContent: string | undefined;
+          let error: string | undefined;
+          
+          if (msg.kind === 4) {
+            // NIP-04 message
+            const otherPubkey = msg.pubkey === user?.pubkey 
+              ? msg.tags.find(([name]) => name === 'p')?.[1]
+              : msg.pubkey;
+            
+            if (otherPubkey && user?.signer?.nip04) {
+              try {
+                decryptedContent = await user.signer.nip04.decrypt(otherPubkey, msg.content);
+              } catch {
+                error = 'Decryption failed';
+              }
+            }
+          } else if (msg.kind === 13) {
+            // NIP-17 seal - decrypt to get the inner kind 14/15 event
+            if (user?.signer?.nip44) {
+              try {
+                const sealContent = await user.signer.nip44.decrypt(msg.pubkey, msg.content);
+                const decryptedEvent = JSON.parse(sealContent) as NostrEvent;
+                
+                // Keep seal structure but add decryptedEvent for access to inner fields
+                return {
+                  ...msg,
+                  decryptedEvent,                         // Full inner event (kind 14/15)
+                  decryptedContent: decryptedEvent.content, // Plaintext message
+                } as NostrEvent & { decryptedEvent?: NostrEvent; decryptedContent?: string; error?: string };
+              } catch {
+                error = 'Decryption failed';
+              }
+            }
+          }
+          
           return {
             ...msg,
             id: msg.id || `missing-${msg.kind}-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content?.substring(0, 16) || 'nocontent'}`,
-            decryptedContent: msg.content, // Content is already plaintext
-          } as NostrEvent & { decryptedContent?: string };
-        });
+            decryptedContent,
+            error,
+          } as NostrEvent & { decryptedContent?: string; error?: string };
+        }));
 
         newState.set(participantPubkey, {
           messages: processedMessages,
@@ -1263,7 +1319,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
       }
 
-      console.log(`[DM] ⏱️ Loaded ${messageCount} messages from encrypted cache (no re-decryption needed!)`);
+      console.log(`[DM] ⏱️ Decrypted ${messageCount} messages in ${(performance.now() - decryptStartTime).toFixed(0)}ms`);
 
       const setStateStart = performance.now();
       setMessages(newState);
@@ -1522,12 +1578,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // Write to store
   const writeAllMessagesToStore = useCallback(async () => {
     if (!userPubkey) return;
-    
-    // Don't try to save if user/signer is not available
-    if (!user?.signer) {
-      console.log('[DM] Skipping cache write - no signer available');
-      return;
-    }
 
     try {
       const { writeMessagesToDB } = await import('@/lib/dmMessageStore');
@@ -1547,26 +1597,26 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
       messages.forEach((participant, participantPubkey) => {
         messageStore.participants[participantPubkey] = {
-          messages: participant.messages.map(msg => {
-            // Store decrypted messages with plaintext content
-            // The entire store will be NIP-44 encrypted as one blob
-            return {
-              id: msg.id,
-              pubkey: msg.pubkey,
-              content: msg.decryptedContent || msg.content, // Store DECRYPTED content
-              created_at: msg.created_at,
-              kind: msg.kind,
-              tags: msg.tags,
-              sig: msg.sig,
-            } as NostrEvent;
-          }),
+          messages: participant.messages.map(msg => ({
+            // Store messages in their ORIGINAL ENCRYPTED form
+            // Just strip the decrypted fields (decryptedContent, decryptedEvent)
+            // Keep originalGiftWrapId for NIP-17 deduplication on cache load
+            id: msg.id,
+            pubkey: msg.pubkey,
+            content: msg.content, // Encrypted content (NIP-04 or seal)
+            created_at: msg.created_at,
+            kind: msg.kind,       // 4 for NIP-04, 13 for NIP-17
+            tags: msg.tags,
+            sig: msg.sig,
+            ...(msg.originalGiftWrapId && { originalGiftWrapId: msg.originalGiftWrapId }),
+          } as NostrEvent)),
           lastActivity: participant.lastActivity,
           hasNIP4: participant.hasNIP4,
           hasNIP17: participant.hasNIP17,
         };
       });
 
-      await writeMessagesToDB(userPubkey, messageStore, user?.signer);
+      await writeMessagesToDB(userPubkey, messageStore);
 
       const currentTime = Math.floor(Date.now() / 1000);
       setLastSync(prev => ({
