@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/useToast';
 import { validateDMEvent } from '@/lib/dmUtils';
 import { LOADING_PHASES, type LoadingPhase, PROTOCOL_MODE, type ProtocolMode } from '@/lib/dmConstants';
 import { NSecSigner, type NostrEvent } from '@nostrify/nostrify';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import { generateSecretKey } from 'nostr-tools';
 import type { MessageProtocol } from '@/lib/dmConstants';
 import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
 
@@ -73,7 +73,7 @@ interface DecryptedMessage extends NostrEvent {
   error?: string;
   isSending?: boolean;
   clientFirstSeen?: number;
-  sealEvent?: NostrEvent; // Store kind 13 seal for NIP-17 (only needs 1 decrypt instead of 2)
+  decryptedEvent?: NostrEvent; // For NIP-17: the inner kind 14/15 event
   originalGiftWrapId?: string; // Store gift wrap ID for NIP-17 deduplication
 }
 
@@ -535,9 +535,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const recipientRandomSigner = new NSecSigner(recipientRandomKey);
       const senderRandomSigner = new NSecSigner(senderRandomKey);
 
-      // Encrypt the seals to the recipients (using user's signer, not random signer)
-      const recipientGiftWrapContent = await user.signer.nip44.encrypt(recipientPubkey, JSON.stringify(recipientSeal));
-      const senderGiftWrapContent = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(senderSeal));
+      // Encrypt the seals using the RANDOM signers (so recipient can decrypt with the random pubkey)
+      // The recipient will decrypt using the gift wrap's pubkey (the random ephemeral key)
+      const recipientGiftWrapContent = await recipientRandomSigner.nip44!.encrypt(recipientPubkey, JSON.stringify(recipientSeal));
+      const senderGiftWrapContent = await senderRandomSigner.nip44!.encrypt(user.pubkey, JSON.stringify(senderSeal));
 
       // Sign both gift wraps with random keys and randomized timestamps
       // Random keys hide the sender's identity; encryption to recipient allows decryption
@@ -804,19 +805,25 @@ export function DMProvider({ children, config }: DMProviderProps) {
         const newState = new Map();
 
         for (const giftWrap of messages) {
-          const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(giftWrap);
+          try {
+            const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(giftWrap);
 
-          // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
-          const messageWithAnimation: DecryptedMessage = {
-            ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
-            created_at: processedMessage.created_at, // Use real timestamp from inner message
-            decryptedEvent: {
-              ...processedMessage,
-              content: processedMessage.decryptedContent,
-            } as NostrEvent,
-            decryptedContent: processedMessage.decryptedContent,
-            originalGiftWrapId: giftWrap.id, // Store gift wrap ID for deduplication
-          };
+            // Skip messages with decryption errors
+            if (processedMessage.error) {
+              continue;
+            }
+
+            // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
+            const messageWithAnimation: DecryptedMessage = {
+              ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
+              created_at: processedMessage.created_at, // Use real timestamp from inner message
+              decryptedEvent: {
+                ...processedMessage,
+                content: processedMessage.decryptedContent,
+              } as NostrEvent,
+              decryptedContent: processedMessage.decryptedContent,
+              originalGiftWrapId: giftWrap.id, // Store gift wrap ID for deduplication
+            };
 
           // Use real message timestamp for recency check
           const messageAge = Date.now() - (processedMessage.created_at * 1000);
@@ -830,6 +837,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
           newState.get(conversationPartner)!.messages.push(messageWithAnimation);
           newState.get(conversationPartner)!.hasNIP17 = true;
+          } catch (error) {
+            console.error('[DM] Error processing gift wrap from relay:', error);
+          }
         }
 
         newState.forEach(participant => {
@@ -1043,6 +1053,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
 
     try {
+      // Decrypt using the ephemeral sender's pubkey (event.pubkey)
       const sealContent = await user.signer.nip44.decrypt(event.pubkey, event.content);
       const sealEvent = JSON.parse(sealContent) as NostrEvent;
 
@@ -1108,13 +1119,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
         conversationPartner = sealEvent.pubkey;
       }
 
-      // console.log(`[DM] ✅ NIP-17 message processed successfully`, {
-      //   giftWrapId: event.id,
-      //   innerKind: messageEvent.kind, // 14 for text, 15 for files
-      //   messageId: messageEvent.id,
-      //   conversationPartner,
-      // });
-
       return {
         processedMessage: {
           ...messageEvent,
@@ -1125,13 +1129,17 @@ export function DMProvider({ children, config }: DMProviderProps) {
         sealEvent, // Return the seal (kind 13) for storage
       };
     } catch (error) {
+      console.error('[DM] Failed to process NIP-17 gift wrap:', {
+        giftWrapId: event.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
       nip17ErrorLogger(error as Error);
       return {
         processedMessage: {
           ...event,
           content: '',
           decryptedContent: '',
-          error: 'Failed to decrypt or parse NIP-17 message',
+          error: error instanceof Error ? error.message : 'Failed to decrypt or parse NIP-17 message',
         },
         conversationPartner: event.pubkey,
         sealEvent: event, // Return the gift wrap as fallback
@@ -1145,27 +1153,45 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     if (event.kind !== 1059) return;
 
-    const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(event);
+    try {
+      const { processedMessage, conversationPartner, sealEvent } = await processNIP17GiftWrap(event);
 
-    // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
-    const messageWithAnimation: DecryptedMessage = {
-      ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
-      created_at: processedMessage.created_at, // Use real timestamp from inner message
-      decryptedEvent: {
-        ...processedMessage,
-        content: processedMessage.decryptedContent,
-      } as NostrEvent,
-      decryptedContent: processedMessage.decryptedContent,
-      originalGiftWrapId: event.id, // Store gift wrap ID for deduplication
-    };
+      // Check if decryption failed
+      if (processedMessage.error) {
+        console.error('[DM] NIP-17 message decryption failed:', {
+          giftWrapId: event.id,
+          error: processedMessage.error,
+        });
+        nip17ErrorLogger(new Error(processedMessage.error));
+        return;
+      }
 
-    // Use real message timestamp for recency check
-    const messageAge = Date.now() - (processedMessage.created_at * 1000);
-    if (messageAge < 5000) {
-      messageWithAnimation.clientFirstSeen = Date.now();
+      // Store the seal (kind 13) as-is + add decryptedEvent for inner message access
+      const messageWithAnimation: DecryptedMessage = {
+        ...sealEvent, // Seal fields (kind 13, seal pubkey, encrypted content, etc.)
+        created_at: processedMessage.created_at, // Use real timestamp from inner message
+        decryptedEvent: {
+          ...processedMessage,
+          content: processedMessage.decryptedContent,
+        } as NostrEvent,
+        decryptedContent: processedMessage.decryptedContent,
+        originalGiftWrapId: event.id, // Store gift wrap ID for deduplication
+      };
+
+      // Use real message timestamp for recency check
+      const messageAge = Date.now() - (processedMessage.created_at * 1000);
+      if (messageAge < 5000) {
+        messageWithAnimation.clientFirstSeen = Date.now();
+      }
+
+      addMessageToState(messageWithAnimation, conversationPartner, MESSAGE_PROTOCOL.NIP17);
+    } catch (error) {
+      console.error('[DM] Exception in processIncomingNIP17Message:', {
+        giftWrapId: event.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      nip17ErrorLogger(error as Error);
     }
-
-    addMessageToState(messageWithAnimation, conversationPartner, MESSAGE_PROTOCOL.NIP17);
   }, [user, processNIP17GiftWrap, addMessageToState]);
 
   // Start NIP-4 subscription
