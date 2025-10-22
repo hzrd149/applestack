@@ -478,10 +478,11 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const now = Math.floor(Date.now() / 1000);
       
       // Generate randomized timestamps for gift wraps (NIP-59 metadata privacy)
-      // Randomize within ±2 days to hide actual send time from relays
+      // Randomize within ±2 days in the PAST only (relays reject future timestamps > +30min)
       const randomizeTimestamp = (baseTime: number) => {
         const twoDaysInSeconds = 2 * 24 * 60 * 60;
-        const randomOffset = Math.floor(Math.random() * twoDaysInSeconds * 2) - twoDaysInSeconds;
+        // Random offset between -2 days and 0 (never future)
+        const randomOffset = -Math.floor(Math.random() * twoDaysInSeconds);
         return baseTime + randomOffset;
       };
 
@@ -526,33 +527,80 @@ export function DMProvider({ children, config }: DMProviderProps) {
       // Per NIP-17/NIP-59: Gift wraps MUST be signed with random, ephemeral keys
       // to hide the sender's identity and provide - some - metadata privacy
       
-      // Create random signers for each gift wrap
-      const recipientRandomSigner = new NSecSigner(generateSecretKey());
-      const senderRandomSigner = new NSecSigner(generateSecretKey());
+      // Generate random secret keys for each gift wrap
+      const recipientRandomKey = generateSecretKey();
+      const senderRandomKey = generateSecretKey();
+      
+      // Create signers with the random keys
+      const recipientRandomSigner = new NSecSigner(recipientRandomKey);
+      const senderRandomSigner = new NSecSigner(senderRandomKey);
+
+      // Encrypt the seals to the recipients (using user's signer, not random signer)
+      const recipientGiftWrapContent = await user.signer.nip44.encrypt(recipientPubkey, JSON.stringify(recipientSeal));
+      const senderGiftWrapContent = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(senderSeal));
 
       // Sign both gift wraps with random keys and randomized timestamps
+      // Random keys hide the sender's identity; encryption to recipient allows decryption
       const [recipientGiftWrap, senderGiftWrap] = await Promise.all([
-        recipientRandomSigner.sign({
+        recipientRandomSigner.signEvent({
           kind: 1059,
-          pubkey: getPublicKey(recipientRandomSigner.privateKey),
           created_at: randomizeTimestamp(now),  // Randomized to hide real send time
           tags: [['p', recipientPubkey]],
-          content: await recipientRandomSigner.nip44!.encrypt(recipientPubkey, JSON.stringify(recipientSeal)),
+          content: recipientGiftWrapContent,
         }),
-        senderRandomSigner.sign({
+        senderRandomSigner.signEvent({
           kind: 1059,
-          pubkey: getPublicKey(senderRandomSigner.privateKey),
           created_at: randomizeTimestamp(now),  // Randomized to hide real send time
           tags: [['p', user.pubkey]],
-          content: await senderRandomSigner.nip44!.encrypt(user.pubkey, JSON.stringify(senderSeal)),
+          content: senderGiftWrapContent,
         }),
       ]);
 
       // Publish both to relays
-      await Promise.all([
-        nostr.event(recipientGiftWrap),
-        nostr.event(senderGiftWrap),
-      ]);
+      try {
+        const results = await Promise.allSettled([
+          nostr.event(recipientGiftWrap),
+          nostr.event(senderGiftWrap),
+        ]);
+        
+        // Check for failures and log detailed errors
+        const recipientResult = results[0];
+        const senderResult = results[1];
+        
+        if (recipientResult.status === 'rejected') {
+          console.error('[DM] Failed to publish recipient gift wrap');
+          console.error('[DM] Recipient gift wrap event:', recipientGiftWrap);
+          
+          // Try to extract detailed errors from AggregateError
+          const error = recipientResult.reason;
+          if (error && typeof error === 'object' && 'errors' in error) {
+            console.error('[DM] Recipient individual relay errors:', error.errors);
+          } else {
+            console.error('[DM] Recipient error:', error);
+          }
+        }
+        
+        if (senderResult.status === 'rejected') {
+          console.error('[DM] Failed to publish sender gift wrap');
+          console.error('[DM] Sender gift wrap event:', senderGiftWrap);
+          
+          // Try to extract detailed errors from AggregateError
+          const error = senderResult.reason;
+          if (error && typeof error === 'object' && 'errors' in error) {
+            console.error('[DM] Sender individual relay errors:', error.errors);
+          } else {
+            console.error('[DM] Sender error:', error);
+          }
+        }
+        
+        // If both failed, throw error
+        if (recipientResult.status === 'rejected' && senderResult.status === 'rejected') {
+          throw new Error(`Both gift wraps rejected. Recipient: ${recipientResult.reason}, Sender: ${senderResult.reason}`);
+        }
+      } catch (publishError) {
+        console.error('[DM] Publish error:', publishError);
+        throw publishError;
+      }
 
       return recipientGiftWrap;
     },
