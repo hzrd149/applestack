@@ -59,10 +59,9 @@ export async function writeMessagesToDB(
   try {
     const db = await openDatabase();
     
-    // Store messages in their original encrypted form (no NIP-44 wrapper needed)
-    // Each message content is already encrypted by the sender
-    await db.put(STORE_NAME, messageStore, userPubkey);
-    console.log('[MessageStore] ✅ Cached', Object.keys(messageStore.participants).length, 'conversations');
+      // Store messages in their original encrypted form (no NIP-44 wrapper needed)
+      // Each message content is already encrypted by the sender
+      await db.put(STORE_NAME, messageStore, userPubkey);
   } catch (error) {
     console.error('[MessageStore] ❌ Error writing to IndexedDB:', error);
     throw error;

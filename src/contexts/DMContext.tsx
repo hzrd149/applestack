@@ -578,7 +578,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
     let processedMessages = 0;
     let currentSince = sinceTimestamp || 0;
 
-    console.log('[DM] loadPastNIP4Messages called with sinceTimestamp:', sinceTimestamp, '(using:', currentSince, ')');
 
     setScanProgress(prev => ({ ...prev, nip4: { current: 0, status: SCAN_STATUS_MESSAGES.NIP4_STARTING } }));
 
@@ -643,7 +642,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
     const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60;
     let currentSince = sinceTimestamp ? sinceTimestamp - TWO_DAYS_IN_SECONDS : 0;
 
-    console.log('[DM] loadPastNIP17Messages called with sinceTimestamp:', sinceTimestamp, '(using:', currentSince, 'after adjusting for timestamp fuzzing)');
 
     setScanProgress(prev => ({ ...prev, nip17: { current: 0, status: SCAN_STATUS_MESSAGES.NIP17_STARTING } }));
 
@@ -697,12 +695,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
     }
 
     if (protocol === MESSAGE_PROTOCOL.NIP04) {
-      const fetchStartTime = performance.now();
       const messages = await loadPastNIP4Messages(sinceTimestamp);
-      console.log(`[DM] ⏱️ NIP-04 fetch from relay took ${(performance.now() - fetchStartTime).toFixed(0)}ms`);
 
       if (messages && messages.length > 0) {
-        const processStartTime = performance.now();
         const newState = new Map();
 
         for (const message of messages) {
@@ -740,7 +735,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
 
         mergeMessagesIntoState(newState);
-        console.log(`[DM] ⏱️ NIP-04 processing (decrypt + merge) took ${(performance.now() - processStartTime).toFixed(0)}ms`);
 
         const currentTime = Math.floor(Date.now() / 1000);
         setLastSync(prev => ({ ...prev, nip4: currentTime }));
@@ -756,12 +750,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
         return { lastMessageTimestamp: sinceTimestamp, messageCount: 0 };
       }
     } else if (protocol === MESSAGE_PROTOCOL.NIP17) {
-      const fetchStartTime = performance.now();
       const messages = await loadPastNIP17Messages(sinceTimestamp);
-      console.log(`[DM] ⏱️ NIP-17 fetch from relay took ${(performance.now() - fetchStartTime).toFixed(0)}ms`);
 
       if (messages && messages.length > 0) {
-        const processStartTime = performance.now();
         const newState = new Map();
 
         for (const giftWrap of messages) {
@@ -798,7 +789,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
 
         mergeMessagesIntoState(newState);
-        console.log(`[DM] ⏱️ NIP-17 processing (decrypt + merge) took ${(performance.now() - processStartTime).toFixed(0)}ms`);
 
         const currentTime = Math.floor(Date.now() / 1000);
         setLastSync(prev => ({ ...prev, nip17: currentTime }));
@@ -1243,9 +1233,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
     try {
       const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
       
-      const dbReadStart = performance.now();
       const cachedStore = await readMessagesFromDB(userPubkey);
-      console.log(`[DM] ⏱️ IndexedDB read + decrypt took ${(performance.now() - dbReadStart).toFixed(0)}ms`);
 
       if (!cachedStore || Object.keys(cachedStore.participants).length === 0) {
         return {};
@@ -1258,14 +1246,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
         );
 
       const newState = new Map();
-      let messageCount = 0;
 
       // Decrypt each message individually (they're stored in original encrypted form)
-      const decryptStartTime = performance.now();
       for (const [participantPubkey, participant] of Object.entries(filteredParticipants)) {
         const processedMessages = await Promise.all(participant.messages.map(async (msg) => {
-          messageCount++;
-          
           // Decrypt based on message kind
           let decryptedContent: string | undefined;
           let error: string | undefined;
@@ -1319,14 +1303,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
         });
       }
 
-      console.log(`[DM] ⏱️ Decrypted ${messageCount} messages in ${(performance.now() - decryptStartTime).toFixed(0)}ms`);
-
-      const setStateStart = performance.now();
       setMessages(newState);
       if (cachedStore.lastSync) {
         setLastSync(cachedStore.lastSync);
       }
-      console.log(`[DM] ⏱️ Setting state took ${(performance.now() - setStateStart).toFixed(0)}ms`);
 
       return {
         nip4Since: cachedStore.lastSync?.nip4 || undefined,
@@ -1342,17 +1322,12 @@ export function DMProvider({ children, config }: DMProviderProps) {
   const startMessageLoading = useCallback(async () => {
     if (isLoading) return;
 
-    const startTime = performance.now();
-    console.log('[DM] ⏱️ Starting message loading...');
-
     setIsLoading(true);
     setLoadingPhase(LOADING_PHASES.CACHE);
 
     try {
       // ===== PHASE 1: Load cache and show immediately =====
-      const cacheStartTime = performance.now();
       const { nip4Since, nip17Since } = await loadAllCachedMessages();
-      console.log(`[DM] ⏱️ Cache load took ${(performance.now() - cacheStartTime).toFixed(0)}ms`);
       
       // Mark as completed BEFORE releasing isLoading to prevent re-trigger
       setHasInitialLoadCompleted(true);
@@ -1360,54 +1335,30 @@ export function DMProvider({ children, config }: DMProviderProps) {
       // Show cached messages immediately! Don't wait for relays
       setLoadingPhase(LOADING_PHASES.READY);
       setIsLoading(false);
-      const cacheOnlyTime = performance.now() - startTime;
-      console.log(`[DM] ⏱️ UI ready (cache only): ${cacheOnlyTime.toFixed(0)}ms`);
 
       // ===== PHASE 2: Query relays in background (non-blocking, parallel) =====
-      console.log('[DM] 🔄 Querying relays in background...', { nip4Since, nip17Since });
       setLoadingPhase(LOADING_PHASES.RELAYS);
-
-      const relayStartTime = performance.now();
       
       // Run NIP-04 and NIP-17 queries IN PARALLEL
       const [nip4Result, nip17Result] = await Promise.all([
-        (async () => {
-          const nip4StartTime = performance.now();
-          const result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since);
-          console.log(`[DM] ⏱️ NIP-04 relay query took ${(performance.now() - nip4StartTime).toFixed(0)}ms (${result.messageCount} messages)`);
-          return result;
-        })(),
-        enableNIP17 ? (async () => {
-          const nip17StartTime = performance.now();
-          const result = await queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17Since);
-          console.log(`[DM] ⏱️ NIP-17 relay query took ${(performance.now() - nip17StartTime).toFixed(0)}ms (${result.messageCount} messages)`);
-          return result;
-        })() : Promise.resolve({ lastMessageTimestamp: undefined, messageCount: 0 })
+        queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since),
+        enableNIP17 ? queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP17, nip17Since) : Promise.resolve({ lastMessageTimestamp: undefined, messageCount: 0 })
       ]);
-
-      const totalRelayTime = performance.now() - relayStartTime;
-      console.log(`[DM] ⏱️ Total relay queries (parallel): ${totalRelayTime.toFixed(0)}ms`);
 
       const totalNewMessages = nip4Result.messageCount + (nip17Result?.messageCount || 0);
       if (totalNewMessages > 0) {
         setShouldSaveImmediately(true);
-        console.log(`[DM] 📥 Received ${totalNewMessages} new messages from relays`);
       }
 
       // ===== PHASE 3: Setup subscriptions =====
       setLoadingPhase(LOADING_PHASES.SUBSCRIPTIONS);
 
-      const subStartTime = performance.now();
       await Promise.all([
         startNIP4Subscription(nip4Result.lastMessageTimestamp),
         enableNIP17 ? startNIP17Subscription(nip17Result?.lastMessageTimestamp) : Promise.resolve()
       ]);
-      console.log(`[DM] ⏱️ Subscriptions setup took ${(performance.now() - subStartTime).toFixed(0)}ms`);
 
       setLoadingPhase(LOADING_PHASES.READY);
-      
-      const totalTime = performance.now() - startTime;
-      console.log(`[DM] ⏱️ Total loading time (cache + background sync): ${totalTime.toFixed(0)}ms`);
     } catch (error) {
       console.error('[DM] Error in message loading:', error);
       setHasInitialLoadCompleted(true);
@@ -1494,19 +1445,9 @@ export function DMProvider({ children, config }: DMProviderProps) {
   useEffect(() => {
     const relayChanged = previousRelayUrl.current !== appConfig.relayUrl;
     
-    console.log('[DM] Relay change check:', {
-      previousRelay: previousRelayUrl.current,
-      currentRelay: appConfig.relayUrl,
-      relayChanged,
-      enabled,
-      userPubkey: !!userPubkey,
-      hasInitialLoadCompleted
-    });
-    
     previousRelayUrl.current = appConfig.relayUrl;
     
     if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
-      console.log('[DM] Relay changed, clearing cache and refetching...');
       clearCacheAndRefetch();
     }
   }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndRefetch]);
@@ -1536,7 +1477,6 @@ export function DMProvider({ children, config }: DMProviderProps) {
     try {
       const shouldClearCache = sessionStorage.getItem('dm-clear-cache-on-load');
       if (shouldClearCache) {
-        console.log('[DM] Hard refresh detected, clearing cache and refetching messages...');
         sessionStorage.removeItem('dm-clear-cache-on-load');
         clearCacheAndRefetch();
       }
