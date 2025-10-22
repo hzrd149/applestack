@@ -39,11 +39,14 @@ const MessageBubble = memo(({
   };
   isFromCurrentUser: boolean;
 }) => {
+  // For NIP-17, use inner message kind (14/15); for NIP-04, use message kind (4)
+  const actualKind = message.decryptedEvent?.kind || message.kind;
   const isNIP4Message = message.kind === 4;
-  const isFileAttachment = message.kind === 15; // Kind 15 = files/attachments
+  const isFileAttachment = actualKind === 15; // Kind 15 = files/attachments
 
   // Create a NostrEvent object for NoteContent (only used for kind 15)
-  const messageEvent: NostrEvent = {
+  // For NIP-17 file attachments, use the decryptedEvent which has the actual tags
+  const messageEvent: NostrEvent = message.decryptedEvent || {
     id: message.id,
     pubkey: message.pubkey,
     created_at: message.created_at,
