@@ -33,6 +33,7 @@ const MessageBubble = memo(({
     kind: number;
     tags: string[][];
     decryptedContent?: string;
+    decryptedEvent?: NostrEvent;
     error?: string;
     created_at: number;
     isSending?: boolean;
