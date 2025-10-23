@@ -19,6 +19,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
 - `/src/components/`: UI components including NostrProvider for Nostr integration
   - `/src/components/ui/`: shadcn/ui components (48+ components available)
   - `/src/components/auth/`: Authentication-related components (LoginArea, LoginDialog, etc.)
+  - `/src/components/dm/`: Direct messaging UI components (DMMessagingInterface, DMConversationList, DMChatArea)
   - Zap components: `ZapButton`, `ZapDialog`, `WalletModal` for Lightning payments
 - `/src/hooks/`: Custom hooks including:
   - `useNostr`: Core Nostr protocol integration
@@ -40,7 +41,9 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useShakespeare`: AI chat completions with Shakespeare AI API
 - `/src/pages/`: Page components used by React Router (Index, NotFound)
 - `/src/lib/`: Utility functions and shared logic
-- `/src/contexts/`: React context providers (AppContext, NWCContext)
+- `/src/contexts/`: React context providers (AppContext, NWCContext, DMContext)
+  - `useDMContext`: Hook exported from DMContext for direct messaging (NIP-04 & NIP-17)
+  - `useConversationMessages`: Hook exported from DMContext for paginated messages
 - `/src/test/`: Testing utilities including TestApp component
 - `/public/`: Static assets
 - `App.tsx`: Main app component with provider setup
@@ -108,6 +111,8 @@ The project includes a **`docs/`** directory containing specialized documentatio
 - **`docs/NOSTR_COMMENTS.md`**: Read when implementing comment systems, adding discussion features to posts/articles, or building community interaction features.
 
 - **`docs/NOSTR_INFINITE_SCROLL.md`**: Read when building feed interfaces, implementing pagination for Nostr events, or creating social media-style infinite scroll experiences.
+
+- **`docs/NOSTR_DIRECT_MESSAGES.md`**: Read when implementing direct messaging features, building chat interfaces, or working with encrypted peer-to-peer communication (NIP-04 and NIP-17).
 
 ## System Prompt Management
 
@@ -743,6 +748,20 @@ function EditProfilePage() {
 ```
 
 The `EditProfileForm` component displays just the form. It requires no props, and will "just work" automatically.
+
+### Direct Messaging (NIP-04 & NIP-17)
+
+The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols. **The system is disabled by default** - enable it by passing `enabled: true` in the `DMProvider` config.
+
+For complete implementation guide including:
+- Setup and configuration
+- Sending messages and file attachments  
+- Using the `DMMessagingInterface` component
+- Building custom messaging UIs
+- Protocol comparison (NIP-04 vs NIP-17)
+- Advanced features and architecture
+
+See **`docs/NOSTR_DIRECT_MESSAGES.md`**
 
 ### Uploading Files on Nostr
 
