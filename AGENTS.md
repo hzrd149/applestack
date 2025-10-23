@@ -751,106 +751,17 @@ The `EditProfileForm` component displays just the form. It requires no props, an
 
 ### Direct Messaging (NIP-04 & NIP-17)
 
-The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols. **The system is disabled by default** - enable it by passing `enabled: true` in the config.
+The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols. **The system is disabled by default** - enable it by passing `enabled: true` in the `DMProvider` config.
 
-**Quick Setup:**
+For complete implementation guide including:
+- Setup and configuration
+- Sending messages and file attachments  
+- Using the `DMMessagingInterface` component
+- Building custom messaging UIs
+- Protocol comparison (NIP-04 vs NIP-17)
+- Advanced features and architecture
 
-```tsx
-import { DMProvider } from '@/contexts/DMContext';
-import { PROTOCOL_MODE } from '@/lib/dmConstants';
-
-// Enable messaging in your app
-<DMProvider config={{ 
-  enabled: true, // System is disabled by default
-  protocolMode: PROTOCOL_MODE.NIP17_ONLY 
-}}>
-  {children}
-</DMProvider>
-```
-
-**Send Messages:**
-
-```tsx
-import { useDMContext } from '@/contexts/DMContext';
-import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
-
-function MyComponent() {
-  const { sendMessage } = useDMContext();
-
-  await sendMessage({
-    recipientPubkey: 'hex-pubkey',
-    content: 'Hello!',
-    protocol: MESSAGE_PROTOCOL.NIP17 // or NIP04
-  });
-}
-```
-
-**Display Conversations:**
-
-```tsx
-const { conversations, isLoading } = useDMContext();
-
-// conversations = Array of conversation summaries with:
-// - pubkey: The other participant
-// - lastMessage: Most recent message
-// - lastActivity: Unix timestamp
-// - isKnown: User has sent messages
-// - isRequest: Only received messages
-```
-
-**Display Messages:**
-
-```tsx
-import { useConversationMessages } from '@/contexts/DMContext';
-
-const { messages, hasMoreMessages, loadEarlierMessages } = useConversationMessages(pubkey);
-
-// messages = Paginated array of messages (25/page)
-// hasMoreMessages = true if earlier messages available
-// loadEarlierMessages() = Load next 25 messages
-```
-
-**Features:**
-- **Dual Protocol Support**: NIP-04 (legacy) and NIP-17 (private with gift wrapping)
-- **Real-time Updates**: WebSocket subscriptions for live messages
-- **Encrypted Storage**: IndexedDB with NIP-44 encryption
-- **Optimistic UI**: Instant message display with background confirmation
-- **File Attachments**: Full support with `attachments` parameter
-- **Cache-First Loading**: Instant UI with background sync
-
-For complete implementation details, file attachments, and advanced features, see **`docs/NOSTR_DIRECT_MESSAGES.md`**.
-
-### Direct Messaging UI Component
-
-To include a complete messaging interface in your app, use the `DMMessagingInterface` component:
-
-```tsx
-import { DMMessagingInterface } from "@/components/dm/DMMessagingInterface";
-
-function MessagesPage() {
-  return (
-    <div className="container mx-auto p-4 h-screen">
-      <DMMessagingInterface />
-    </div>
-  );
-}
-```
-
-The `DMMessagingInterface` component provides a complete messaging UI with:
-- Conversation list with Active/Requests tabs
-- Message thread view with pagination
-- Compose area with file upload support
-- Real-time message updates
-- Mobile-responsive layout (shows one panel at a time on mobile)
-
-It requires no props and works automatically when wrapped in `DMProvider`. 
-
-**For custom layouts**, individual components are available:
-- `DMConversationList` - Conversation sidebar with tabs
-- `DMChatArea` - Message thread and compose area
-- `DMStatusInfo` - Debug/status panel
-
-See `docs/NOSTR_DIRECT_MESSAGES.md` for custom layout examples.
+See **`docs/NOSTR_DIRECT_MESSAGES.md`**
 
 ### Uploading Files on Nostr
 

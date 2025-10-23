@@ -171,6 +171,33 @@ function MessageThread({ conversationPubkey }: { conversationPubkey: string }) {
 }
 ```
 
+## Using the Complete Messaging Interface
+
+For a fully-featured messaging UI out of the box, use the `DMMessagingInterface` component:
+
+```tsx
+import { DMMessagingInterface } from "@/components/dm/DMMessagingInterface";
+
+function MessagesPage() {
+  return (
+    <div className="container mx-auto p-4 h-screen">
+      <DMMessagingInterface />
+    </div>
+  );
+}
+```
+
+The `DMMessagingInterface` component provides a complete messaging UI with:
+- Conversation list with Active/Requests tabs
+- Message thread view with pagination
+- Compose area with file upload support
+- Real-time message updates
+- Mobile-responsive layout (shows one panel at a time on mobile)
+
+It requires no props and works automatically when wrapped in `DMProvider`.
+
+**For custom layouts**, see the "Building Custom Messaging UIs" section below for individual components (`DMConversationList`, `DMChatArea`, `DMStatusInfo`).
+
 ## Sending Files with Messages
 
 ```tsx
