@@ -158,6 +158,7 @@ When implementing features that could use existing NIPs, follow this decision fr
    - No existing NIP covers the core functionality
    - The data structure is fundamentally different from existing patterns
    - The use case requires different storage characteristics (regular vs replaceable vs addressable)
+   - If you have a tool available to generate a kind, you **MUST** call the tool to generate a new kind rather than picking an arbitrary number
 
 6. **Custom Kind Publishing**: When publishing events with custom generated kinds, always include a NIP-31 "alt" tag with a human-readable description of the event's purpose.
 
