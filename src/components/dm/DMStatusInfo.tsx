@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RefreshCw, Database, Wifi, CheckCircle2, Loader2 } from 'lucide-react';
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { LOADING_PHASES } from '@/lib/dmConstants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

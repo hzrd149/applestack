@@ -11,7 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
-import { DMProvider, type DMConfig } from '@/contexts/DMContext';
+import { DMProvider, type DMConfig } from '@/components/DMProvider';
 import { AppConfig } from '@/contexts/AppContext';
 import { PROTOCOL_MODE } from '@/lib/dmConstants';
 import AppRouter from './AppRouter';

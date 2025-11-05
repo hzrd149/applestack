@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { useConversationMessages, useDMContext } from '@/contexts/DMContext';
+import { useConversationMessages } from '@/hooks/useConversationMessages';
+import { useDMContext } from '@/hooks/useDMContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';

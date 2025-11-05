@@ -1,6 +1,6 @@
 import { useMemo, useState, memo } from 'react';
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatConversationTime, formatFullDateTime } from '@/lib/dmUtils';

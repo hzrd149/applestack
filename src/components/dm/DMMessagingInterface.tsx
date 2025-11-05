@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { DMConversationList } from '@/components/dm/DMConversationList';
 import { DMChatArea } from '@/components/dm/DMChatArea';
 import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
 import {

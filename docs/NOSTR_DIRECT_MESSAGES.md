@@ -9,7 +9,7 @@ This project includes a complete direct messaging system supporting both NIP-04 
 The `DMProvider` is already added to your app, but **disabled by default**. To enable messaging, pass `enabled: true` in the config:
 
 ```tsx
-import { DMProvider } from '@/contexts/DMContext';
+import { DMProvider } from '@/components/DMProvider';
 import { PROTOCOL_MODE } from '@/lib/dmConstants';
 
 function App() {
@@ -36,7 +36,7 @@ function App() {
 ### 2. Send Messages
 
 ```tsx
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
 
 function ComposeMessage({ recipientPubkey }: { recipientPubkey: string }) {
@@ -68,7 +68,7 @@ function ComposeMessage({ recipientPubkey }: { recipientPubkey: string }) {
 ### 3. Display Conversations
 
 ```tsx
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 
@@ -122,7 +122,7 @@ function ConversationItem({ conversation, onClick }: {
 ### 4. Display Messages in a Conversation
 
 ```tsx
-import { useConversationMessages } from '@/contexts/DMContext';
+import { useConversationMessages } from '@/hooks/useConversationMessages';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 function MessageThread({ conversationPubkey }: { conversationPubkey: string }) {
@@ -201,9 +201,10 @@ It requires no props and works automatically when wrapped in `DMProvider`.
 ## Sending Files with Messages
 
 ```tsx
-import { useDMContext, type FileAttachment } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { MESSAGE_PROTOCOL } from '@/lib/dmConstants';
+import type { FileAttachment } from '@/contexts/DMContext';
 
 function ComposeWithFiles({ recipientPubkey }: { recipientPubkey: string }) {
   const { sendMessage } = useDMContext();
@@ -321,7 +322,7 @@ if (scanProgress.nip17) {
 ### Clear Cache and Refresh
 
 ```tsx
-import { useDMContext } from '@/contexts/DMContext';
+import { useDMContext } from '@/hooks/useDMContext';
 
 function SettingsButton() {
   const { clearCacheAndRefetch } = useDMContext();
