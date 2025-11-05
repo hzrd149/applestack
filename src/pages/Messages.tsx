@@ -1,6 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
 import { DMMessagingInterface } from '@/components/dm/DMMessagingInterface';
-import { RelaySelector } from '@/components/RelaySelector';
 
 const Messages = () => {
   useSeoMeta({
@@ -14,7 +13,6 @@ const Messages = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-semibold">Messages</h1>
-          <RelaySelector />
         </div>
 
         <DMMessagingInterface className="flex-1" />

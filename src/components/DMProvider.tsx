@@ -137,7 +137,7 @@ interface DMProviderProps {
  */
 function prepareMessageContent(content: string, attachments: FileAttachment[] = []): string {
   if (attachments.length === 0) return content;
-  
+
   const fileUrls = attachments.map(file => file.url).join('\n');
   return content ? `${content}\n\n${fileUrls}` : fileUrls;
 }
@@ -176,10 +176,10 @@ export function DMProvider({ children, config }: DMProviderProps) {
   const { config: appConfig } = useAppContext();
 
   const userPubkey = useMemo(() => user?.pubkey, [user?.pubkey]);
-  
-  // Track relay URL to detect changes
-  const previousRelayUrl = useRef<string>(appConfig.relayUrl);
-  
+
+  // Track relay metadata to detect changes
+  const previousRelayMetadata = useRef(appConfig.relayMetadata);
+
   // Determine if NIP-17 is enabled based on protocol mode
   const enableNIP17 = protocolMode !== PROTOCOL_MODE.NIP04_ONLY;
 
@@ -210,8 +210,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // ============================================================================
 
   // Send NIP-04 Message (internal)
-  const sendNIP4Message = useMutation<NostrEvent, Error, { 
-    recipientPubkey: string; 
+  const sendNIP4Message = useMutation<NostrEvent, Error, {
+    recipientPubkey: string;
     content: string;
     attachments?: FileAttachment[];
   }>({
@@ -254,8 +254,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
   });
 
   // Send NIP-17 Message (internal)
-  const sendNIP17Message = useMutation<NostrEvent, Error, { 
-    recipientPubkey: string; 
+  const sendNIP17Message = useMutation<NostrEvent, Error, {
+    recipientPubkey: string;
     content: string;
     attachments?: FileAttachment[];
   }>({
@@ -270,7 +270,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
       // Step 1: Create the inner Kind 14 Private Direct Message
       const now = Math.floor(Date.now() / 1000);
-      
+
       // Generate randomized timestamps for gift wraps (NIP-59 metadata privacy)
       // Randomize within ±2 days in the PAST only (relays reject future timestamps > +30min)
       const randomizeTimestamp = (baseTime: number) => {
@@ -320,11 +320,11 @@ export function DMProvider({ children, config }: DMProviderProps) {
       // Step 3: Create TWO Kind 1059 Gift Wrap events
       // Per NIP-17/NIP-59: Gift wraps MUST be signed with random, ephemeral keys
       // to hide the sender's identity and provide - some - metadata privacy
-      
+
       // Generate random secret keys for each gift wrap
       const recipientRandomKey = generateSecretKey();
       const senderRandomKey = generateSecretKey();
-      
+
       // Create signers with the random keys
       const recipientRandomSigner = new NSecSigner(recipientRandomKey);
       const senderRandomSigner = new NSecSigner(senderRandomKey);
@@ -357,15 +357,15 @@ export function DMProvider({ children, config }: DMProviderProps) {
           nostr.event(recipientGiftWrap),
           nostr.event(senderGiftWrap),
         ]);
-        
+
         // Check for failures and log detailed errors
         const recipientResult = results[0];
         const senderResult = results[1];
-        
+
         if (recipientResult.status === 'rejected') {
           console.error('[DM] Failed to publish recipient gift wrap');
           console.error('[DM] Recipient gift wrap event:', recipientGiftWrap);
-          
+
           // Try to extract detailed errors from AggregateError
           const error = recipientResult.reason;
           if (error && typeof error === 'object' && 'errors' in error) {
@@ -374,11 +374,11 @@ export function DMProvider({ children, config }: DMProviderProps) {
             console.error('[DM] Recipient error:', error);
           }
         }
-        
+
         if (senderResult.status === 'rejected') {
           console.error('[DM] Failed to publish sender gift wrap');
           console.error('[DM] Sender gift wrap event:', senderGiftWrap);
-          
+
           // Try to extract detailed errors from AggregateError
           const error = senderResult.reason;
           if (error && typeof error === 'object' && 'errors' in error) {
@@ -387,7 +387,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
             console.error('[DM] Sender error:', error);
           }
         }
-        
+
         // If both failed, throw error
         if (recipientResult.status === 'rejected' && senderResult.status === 'rejected') {
           throw new Error(`Both gift wraps rejected. Recipient: ${recipientResult.reason}, Sender: ${senderResult.reason}`);
@@ -478,7 +478,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     let allNIP17Events: NostrEvent[] = [];
     let processedMessages = 0;
-    
+
     // Adjust since timestamp to account for NIP-17 timestamp fuzzing (±2 days)
     // We need to query from (lastSync - 2 days) to catch messages with randomized past timestamps
     // This may fetch duplicates, but they're filtered by message ID in addMessageToState
@@ -713,7 +713,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
           const existingMessageIds = new Set(
             existing.messages.map(msg => msg.originalGiftWrapId || msg.id)
           );
-          const newMessages = value.messages.filter(msg => 
+          const newMessages = value.messages.filter(msg =>
             !existingMessageIds.has(msg.originalGiftWrapId || msg.id)
           );
 
@@ -1052,7 +1052,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
       if (!sinceTimestamp && lastSync.nip17) {
         subscriptionSince = lastSync.nip17 - DM_CONSTANTS.SUBSCRIPTION_OVERLAP_SECONDS;
       }
-      
+
       // Adjust for NIP-17 timestamp fuzzing (±2 days)
       // Subscribe from (lastSync - 2 days) to catch messages with randomized past timestamps
       const TWO_DAYS_IN_SECONDS = 2 * 24 * 60 * 60;
@@ -1101,7 +1101,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
     try {
       const { readMessagesFromDB } = await import('@/lib/dmMessageStore');
-      
+
       const cachedStore = await readMessagesFromDB(userPubkey);
 
       if (!cachedStore || Object.keys(cachedStore.participants).length === 0) {
@@ -1122,13 +1122,13 @@ export function DMProvider({ children, config }: DMProviderProps) {
           // Decrypt based on message kind
           let decryptedContent: string | undefined;
           let error: string | undefined;
-          
+
           if (msg.kind === 4) {
             // NIP-04 message
-            const otherPubkey = msg.pubkey === user?.pubkey 
+            const otherPubkey = msg.pubkey === user?.pubkey
               ? msg.tags.find(([name]) => name === 'p')?.[1]
               : msg.pubkey;
-            
+
             if (otherPubkey && user?.signer?.nip04) {
               try {
                 decryptedContent = await user.signer.nip04.decrypt(otherPubkey, msg.content);
@@ -1142,7 +1142,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
               try {
                 const sealContent = await user.signer.nip44.decrypt(msg.pubkey, msg.content);
                 const decryptedEvent = JSON.parse(sealContent) as NostrEvent;
-                
+
                 // Keep seal structure but add decryptedEvent for access to inner fields
                 return {
                   ...msg,
@@ -1154,7 +1154,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
               }
             }
           }
-          
+
           return {
             ...msg,
             id: msg.id || `missing-${msg.kind}-${msg.created_at}-${msg.pubkey.substring(0, 8)}-${msg.content?.substring(0, 16) || 'nocontent'}`,
@@ -1197,17 +1197,17 @@ export function DMProvider({ children, config }: DMProviderProps) {
     try {
       // ===== PHASE 1: Load cache and show immediately =====
       const { nip4Since, nip17Since } = await loadAllCachedMessages();
-      
+
       // Mark as completed BEFORE releasing isLoading to prevent re-trigger
       setHasInitialLoadCompleted(true);
-      
+
       // Show cached messages immediately! Don't wait for relays
       setLoadingPhase(LOADING_PHASES.READY);
       setIsLoading(false);
 
       // ===== PHASE 2: Query relays in background (non-blocking, parallel) =====
       setLoadingPhase(LOADING_PHASES.RELAYS);
-      
+
       // Run NIP-04 and NIP-17 queries IN PARALLEL
       const [nip4Result, nip17Result] = await Promise.all([
         queryRelaysForMessagesSince(MESSAGE_PROTOCOL.NIP04, nip4Since),
@@ -1261,7 +1261,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
       setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
       setScanProgress({ nip4: null, nip17: null });
       setLoadingPhase(LOADING_PHASES.IDLE);
-      
+
       // Trigger reload by setting hasInitialLoadCompleted to false
       setHasInitialLoadCompleted(false);
     } catch (error) {
@@ -1279,7 +1279,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // Cleanup effect
   useEffect(() => {
     if (!enabled) return;
-    
+
     return () => {
       if (nip4SubscriptionRef.current) {
         nip4SubscriptionRef.current.close();
@@ -1295,7 +1295,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
   // Cleanup subscriptions
   useEffect(() => {
     if (!enabled) return;
-    
+
     return () => {
       if (nip4SubscriptionRef.current) {
         nip4SubscriptionRef.current.close();
@@ -1312,14 +1312,14 @@ export function DMProvider({ children, config }: DMProviderProps) {
 
   // Detect relay changes and reload messages
   useEffect(() => {
-    const relayChanged = previousRelayUrl.current !== appConfig.relayUrl;
-    
-    previousRelayUrl.current = appConfig.relayUrl;
-    
+    const relayChanged = JSON.stringify(previousRelayMetadata.current) !== JSON.stringify(appConfig.relayMetadata);
+
+    previousRelayMetadata.current = appConfig.relayMetadata;
+
     if (relayChanged && enabled && userPubkey && hasInitialLoadCompleted) {
       clearCacheAndRefetch();
     }
-  }, [enabled, userPubkey, appConfig.relayUrl, hasInitialLoadCompleted, clearCacheAndRefetch]);
+  }, [enabled, userPubkey, appConfig.relayMetadata, hasInitialLoadCompleted, clearCacheAndRefetch]);
 
   // Detect hard refresh shortcut (Ctrl+Shift+R / Cmd+Shift+R) to clear cache
   useEffect(() => {
@@ -1461,14 +1461,14 @@ export function DMProvider({ children, config }: DMProviderProps) {
   }, [enabled, messages, shouldSaveImmediately, writeAllMessagesToStore, triggerDebouncedWrite]);
 
   // Send message
-  const sendMessage = useCallback(async (params: { 
-    recipientPubkey: string; 
-    content: string; 
+  const sendMessage = useCallback(async (params: {
+    recipientPubkey: string;
+    content: string;
     protocol?: MessageProtocol;
     attachments?: FileAttachment[];
   }) => {
     if (!enabled) return;
-    
+
     const { recipientPubkey, content, protocol = MESSAGE_PROTOCOL.NIP04, attachments } = params;
     if (!userPubkey) return;
 

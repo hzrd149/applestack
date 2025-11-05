@@ -756,7 +756,7 @@ The project includes a complete direct messaging system with real-time updates, 
 
 For complete implementation guide including:
 - Setup and configuration
-- Sending messages and file attachments  
+- Sending messages and file attachments
 - Using the `DMMessagingInterface` component
 - Building custom messaging UIs
 - Protocol comparison (NIP-04 vs NIP-17)
@@ -832,16 +832,46 @@ export function Post(/* ...props */) {
 
 ## App Configuration
 
-The project includes an `AppProvider` that manages global application state including theme and relay configuration. The default configuration includes:
+The project includes an `AppProvider` that manages global application state including theme and NIP-65 relay configuration. The default configuration includes:
 
 ```typescript
 const defaultConfig: AppConfig = {
   theme: "light",
-  relayUrl: "wss://relay.nostr.band",
+  relayMetadata: {
+    relays: [
+      { url: 'wss://relay.ditto.pub', read: true, write: true },
+      { url: 'wss://relay.nostr.band', read: true, write: true },
+      { url: 'wss://relay.damus.io', read: true, write: true },
+    ],
+    updatedAt: 0,
+  },
 };
 ```
 
-Preset relays are available including Ditto, Nostr.Band, Damus, and Primal. The app uses local storage to persist user preferences.
+The app uses NIP-65 compatible relay management with automatic sync when users log in. Local storage persists user preferences and relay configurations.
+
+### Relay Management
+
+The project includes a complete NIP-65 relay management system:
+
+- **RelayListManager**: Component for managing multiple relays with read/write permissions
+- **NostrSync**: Automatically syncs user's NIP-65 relay list when they log in
+- **Automatic Publishing**: Changes to relay configuration are automatically published as NIP-65 events when the user is logged in
+
+Use the `RelayListManager` component to provide relay management interfaces:
+
+```tsx
+import { RelayListManager } from '@/components/RelayListManager';
+
+function SettingsPage() {
+  return (
+    <div>
+      <h2>Relay Settings</h2>
+      <RelayListManager />
+    </div>
+  );
+}
+```
 
 ## Routing
 
@@ -895,10 +925,9 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 
 ### Empty States and No Content Found
 
-When no content is found (empty search results, no data available, etc.), display a minimalist empty state with the `RelaySelector` component. This allows users to easily switch relays to discover content from different sources.
+When no content is found (empty search results, no data available, etc.), display a minimalist empty state with helpful messaging. The application uses NIP-65 relay management, so users can manage their relays through the settings or relay management interface.
 
 ```tsx
-import { RelaySelector } from '@/components/RelaySelector';
 import { Card, CardContent } from '@/components/ui/card';
 
 // Empty state example
@@ -907,9 +936,8 @@ import { Card, CardContent } from '@/components/ui/card';
     <CardContent className="py-12 px-8 text-center">
       <div className="max-w-sm mx-auto space-y-6">
         <p className="text-muted-foreground">
-          No results found. Try another relay?
+          No results found. Try checking your relay connections or wait a moment for content to load.
         </p>
-        <RelaySelector className="w-full" />
       </div>
     </CardContent>
   </Card>

@@ -6,6 +6,7 @@ import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
 import NostrProvider from '@/components/NostrProvider';
+import { NostrSync } from '@/components/NostrSync';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
@@ -34,20 +35,20 @@ const queryClient = new QueryClient({
 
 const defaultConfig: AppConfig = {
   theme: "light",
-  relayUrl: "wss://relay.ditto.pub",
+  relayMetadata: {
+    relays: [
+      { url: 'wss://relay.ditto.pub', read: true, write: true },
+      { url: 'wss://relay.nostr.band', read: true, write: true },
+      { url: 'wss://relay.damus.io', read: true, write: true },
+    ],
+    updatedAt: 0,
+  },
 };
-
-const presetRelays = [
-  { url: 'wss://relay.ditto.pub', name: 'Ditto' },
-  { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
-  { url: 'wss://relay.damus.io', name: 'Damus' },
-  { url: 'wss://relay.primal.net', name: 'Primal' },
-];
 
 const dmConfig: DMConfig = {
   // Enable or disable DMs entirely
   enabled: true, // Set to false to completely disable messaging functionality
-  
+
   // Choose one protocol mode:
   // PROTOCOL_MODE.NIP04_ONLY - Force NIP-04 (legacy) only
   // PROTOCOL_MODE.NIP17_ONLY - Force NIP-17 (private) only
@@ -58,10 +59,11 @@ const dmConfig: DMConfig = {
 export function App() {
   return (
     <UnheadProvider head={head}>
-      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig} presetRelays={presetRelays}>
+      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
+              <NostrSync />
               <NWCProvider>
                 <DMProvider config={dmConfig}>
                   <TooltipProvider>

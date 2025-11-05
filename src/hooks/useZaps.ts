@@ -205,7 +205,7 @@ export function useZaps(
         profile: actualTarget.pubkey,
         event: event,
         amount: zapAmount,
-        relays: [config.relayUrl],
+        relays: config.relayMetadata.relays.map(r => r.url),
         comment
       });
 
