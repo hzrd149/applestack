@@ -46,8 +46,10 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useConversationMessages`: Hook exported from DMContext for paginated messages
 - `/src/test/`: Testing utilities including TestApp component
 - `/public/`: Static assets
-- `App.tsx`: Main app component with provider setup
+- `App.tsx`: Main app component with provider setup (**CRITICAL**: this file is **already configured** with `QueryClientProvider`, `NostrProvider`, `UnheadProvider` and other important providers - **read this file before making changes**. Changes are usually not necessary unless adding new providers. Changing this file may break the application)
 - `AppRouter.tsx`: React Router configuration
+
+**CRITICAL**: Always read the files mentioned above before making changes, as they contain important setup and configuration for the application. Never directly write to these files without first reading their contents.
 
 ## UI Components
 
@@ -1061,6 +1063,7 @@ When users specify color schemes:
 There is an important distinction between **writing new tests** and **running existing tests**:
 
 ### Writing Tests (Creating New Test Files)
+
 **Do not write tests** unless the user explicitly requests them in plain language. Writing unnecessary tests wastes significant time and money. Only create tests when:
 
 1. **The user explicitly asks for tests** to be written in their message
@@ -1074,6 +1077,7 @@ There is an important distinction between **writing new tests** and **running ex
 - Existing functionality needs verification
 
 ### Running Tests (Executing the Test Suite)
+
 **ALWAYS run the test script** after making any code changes. This is mandatory regardless of whether you wrote new tests or not.
 
 - **You must run the test script** to validate your changes
@@ -1133,3 +1137,9 @@ Run available tools in this priority order:
 - Create a git commit when your changes are complete
 
 The validation ensures code quality and catches errors before deployment, regardless of the development environment.
+
+### Using Git
+
+If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
+
+When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
