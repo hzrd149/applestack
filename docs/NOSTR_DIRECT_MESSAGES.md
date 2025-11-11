@@ -36,16 +36,14 @@ export function App() {
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
               <NostrSync />
-              <NWCProvider>
-                <DMProvider config={dmConfig}>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Suspense>
-                      <AppRouter />
-                    </Suspense>
-                  </TooltipProvider>
-                </DMProvider>
-              </NWCProvider>
+              <DMProvider config={dmConfig}>
+                <TooltipProvider>
+                  <Toaster />
+                  <Suspense>
+                    <AppRouter />
+                  </Suspense>
+                </TooltipProvider>
+              </DMProvider>
             </NostrProvider>
           </NostrLoginProvider>
         </QueryClientProvider>

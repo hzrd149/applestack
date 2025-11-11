@@ -43,8 +43,6 @@ const defaultConfig: AppConfig = {
   },
 };
 
-
-
 export function App() {
   return (
     <UnheadProvider head={head}>
