@@ -1,39 +1,75 @@
 ### Direct Messaging on Nostr
 
-This project includes a complete direct messaging system supporting both NIP-04 (legacy) and NIP-17 (modern, - more - private) encrypted messages with real-time subscriptions, optimistic updates, and a persistent - cache first - local storage.
+This project includes a complete direct messaging system supporting both NIP-04 (legacy) and NIP-17 (modern, more private) encrypted messages with real-time subscriptions, optimistic updates, and a persistent cache-first local storage.
 
-## Quick Start
+**The DM system is not enabled by default** - follow the setup instructions below to add messaging functionality to your application.
 
-### 1. Enable Direct Messaging
+## Setup Instructions
 
-The `DMProvider` is already added to your app, but **disabled by default**. To enable messaging, pass `enabled: true` in the config:
+### 1. Add DMProvider to Your App
+
+First, add the `DMProvider` to your app's provider tree in `src/App.tsx`:
 
 ```tsx
-import { DMProvider } from '@/components/DMProvider';
+// Add these imports at the top of src/App.tsx
+import { DMProvider, type DMConfig } from '@/components/DMProvider';
 import { PROTOCOL_MODE } from '@/lib/dmConstants';
 
-function App() {
+// Add this configuration before your App component
+const dmConfig: DMConfig = {
+  // Enable or disable DMs entirely
+  enabled: true, // Set to true to enable messaging functionality
+
+  // Choose one protocol mode:
+  // PROTOCOL_MODE.NIP04_ONLY - Force NIP-04 (legacy) only
+  // PROTOCOL_MODE.NIP17_ONLY - Force NIP-17 (private) only
+  // PROTOCOL_MODE.NIP04_OR_NIP17 - Allow users to choose between NIP-04 and NIP-17 (defaults to NIP-17)
+  protocolMode: PROTOCOL_MODE.NIP17_ONLY, // Recommended for new apps
+};
+
+// Then wrap your app components with DMProvider:
+export function App() {
   return (
-    <DMProvider config={{ 
-      enabled: true, // Enable the DM system
-      protocolMode: PROTOCOL_MODE.NIP17_ONLY 
-    }}>
-      {/* Your app components */}
-    </DMProvider>
+    <UnheadProvider head={head}>
+      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+        <QueryClientProvider client={queryClient}>
+          <NostrLoginProvider storageKey='nostr:login'>
+            <NostrProvider>
+              <NostrSync />
+              <NWCProvider>
+                <DMProvider config={dmConfig}>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Suspense>
+                      <AppRouter />
+                    </Suspense>
+                  </TooltipProvider>
+                </DMProvider>
+              </NWCProvider>
+            </NostrProvider>
+          </NostrLoginProvider>
+        </QueryClientProvider>
+      </AppProvider>
+    </UnheadProvider>
   );
 }
 ```
 
-**Config Options:**
+### 2. Configure DM Settings
+
+The `DMConfig` object supports the following options:
+
 - `enabled` (boolean, default: `false`) - Enable/disable entire DM system. When false, no messages are loaded, stored, or processed.
 - `protocolMode` (ProtocolMode, default: `PROTOCOL_MODE.NIP17_ONLY`) - Which protocols to support:
   - `PROTOCOL_MODE.NIP04_ONLY` - Legacy encryption only
   - `PROTOCOL_MODE.NIP17_ONLY` - Modern private messages (recommended)
-  - `PROTOCOL_MODE.BOTH` - Support both protocols (for backwards compatibility)
+  - `PROTOCOL_MODE.NIP04_OR_NIP17` - Support both protocols (for backwards compatibility)
 
 **Note**: The DM system uses domain-based IndexedDB naming (`nostr-dm-store-${hostname}`) to prevent conflicts between multiple apps on the same domain.
 
-### 2. Send Messages
+## Quick Start
+
+### 1. Send Messages
 
 ```tsx
 import { useDMContext } from '@/hooks/useDMContext';
@@ -54,8 +90,8 @@ function ComposeMessage({ recipientPubkey }: { recipientPubkey: string }) {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-      <textarea 
-        value={content} 
+      <textarea
+        value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Type a message..."
       />
@@ -65,7 +101,7 @@ function ComposeMessage({ recipientPubkey }: { recipientPubkey: string }) {
 }
 ```
 
-### 3. Display Conversations
+### 2. Display Conversations
 
 ```tsx
 import { useDMContext } from '@/hooks/useDMContext';
@@ -82,7 +118,7 @@ function ConversationList({ onSelectConversation }: { onSelectConversation: (pub
   return (
     <div className="space-y-2">
       {conversations.map((conversation) => (
-        <ConversationItem 
+        <ConversationItem
           key={conversation.pubkey}
           conversation={conversation}
           onClick={() => onSelectConversation(conversation.pubkey)}
@@ -92,8 +128,8 @@ function ConversationList({ onSelectConversation }: { onSelectConversation: (pub
   );
 }
 
-function ConversationItem({ conversation, onClick }: { 
-  conversation: ConversationSummary; 
+function ConversationItem({ conversation, onClick }: {
+  conversation: ConversationSummary;
   onClick: () => void;
 }) {
   const author = useAuthor(conversation.pubkey);
@@ -119,7 +155,7 @@ function ConversationItem({ conversation, onClick }: {
 }
 ```
 
-### 4. Display Messages in a Conversation
+### 3. Display Messages in a Conversation
 
 ```tsx
 import { useConversationMessages } from '@/hooks/useConversationMessages';
@@ -136,12 +172,12 @@ function MessageThread({ conversationPubkey }: { conversationPubkey: string }) {
           Load earlier messages
         </button>
       )}
-      
+
       {messages.map((message) => {
         const isFromMe = message.pubkey === user?.pubkey;
-        
+
         return (
-          <div 
+          <div
             key={message.id}
             className={cn(
               "flex",
@@ -218,7 +254,7 @@ function ComposeWithFiles({ recipientPubkey }: { recipientPubkey: string }) {
     // Upload file if one is selected
     if (selectedFile) {
       const tags = await uploadFile(selectedFile);
-      
+
       attachments = [{
         url: tags[0][1], // URL from first tag
         mimeType: selectedFile.type,
@@ -241,19 +277,19 @@ function ComposeWithFiles({ recipientPubkey }: { recipientPubkey: string }) {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-      <textarea 
-        value={content} 
+      <textarea
+        value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Type a message..."
       />
-      
-      <input 
-        type="file" 
+
+      <input
+        type="file"
         onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
       />
-      
+
       {selectedFile && <div>Selected: {selectedFile.name}</div>}
-      
+
       <button type="submit" disabled={isUploading}>
         {isUploading ? 'Uploading...' : 'Send'}
       </button>
