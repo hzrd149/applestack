@@ -47,7 +47,7 @@ const defaultConfig: AppConfig = {
 
 const dmConfig: DMConfig = {
   // Enable or disable DMs entirely
-  enabled: true, // Set to false to completely disable messaging functionality
+  enabled: false, // Set to false to completely disable messaging functionality
 
   // Choose one protocol mode:
   // PROTOCOL_MODE.NIP04_ONLY - Force NIP-04 (legacy) only
