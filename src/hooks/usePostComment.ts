@@ -85,7 +85,7 @@ export function usePostComment() {
     onSuccess: (_, { root }) => {
       // Invalidate and refetch comments
       queryClient.invalidateQueries({
-        queryKey: ['comments', root instanceof URL ? root.toString() : root.id]
+        queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id]
       });
     },
   });
