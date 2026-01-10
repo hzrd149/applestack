@@ -1053,6 +1053,7 @@ When users specify color schemes:
 - Follow shadcn/ui patterns for component variants
 - Implement responsive design with Tailwind breakpoints
 - Add hover and focus states for interactive elements
+- When using negative z-index (e.g., `-z-10`) for background images or decorative elements, **always add `isolate` to the parent container** to create a local stacking context. Without `isolate`, negative z-index pushes elements behind the page's background color, making them invisible.
 
 ## Writing Tests vs Running Tests
 
