@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { use$ } from "./use$";
 import { useEventStore } from "./useEventStore";
 import { ProfileModel } from "applesauce-core/models";
-import type { NostrMetadata } from "applesauce-core/helpers";
+import type { NostrMetadata } from "@/types/nostr";
 
 /**
  * Get a user's profile by their pubkey.

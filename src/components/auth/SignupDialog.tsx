@@ -66,8 +66,8 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       globalThis.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      // Continue to profile step
-      await login.nsec(nsec);
+      // Continue to profile step  
+      login.nsec(nsec);
       setStep('profile');
     } catch {
       toast({
@@ -130,9 +130,12 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
         if (profileData.about) metadata.about = profileData.about;
         if (profileData.picture) metadata.picture = profileData.picture;
 
-        // Use ProfileBlueprint from applesauce-common
-        const { ProfileBlueprint } = await import('applesauce-common/blueprints');
-        await publishEvent(ProfileBlueprint(metadata));
+        // Publish kind 0 metadata event
+        await publishEvent({
+          kind: 0,
+          content: JSON.stringify(metadata),
+          tags: [],
+        });
       }
     } catch {
       toast({

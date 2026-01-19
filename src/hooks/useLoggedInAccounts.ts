@@ -1,13 +1,12 @@
 import { useAccounts, useActiveAccount } from "applesauce-react/hooks";
 import { useProfile } from "./useProfile";
-import type { NostrMetadata } from "applesauce-core/helpers";
+import type { NostrMetadata } from "@/types/nostr";
 import { accountManager } from "@/services/accounts";
 
 export interface Account {
   id: string;
   pubkey: string;
   metadata: NostrMetadata;
-  label?: string;
 }
 
 /**
@@ -27,7 +26,6 @@ export function useLoggedInAccounts() {
       id: account.pubkey, // Use pubkey as ID for consistency
       pubkey: account.pubkey,
       metadata: profile ?? {},
-      label: account.label,
     };
   });
 
@@ -40,7 +38,6 @@ export function useLoggedInAccounts() {
       id: activeAccount.pubkey,
       pubkey: activeAccount.pubkey,
       metadata: {},
-      label: activeAccount.label,
     };
   })();
 
@@ -52,7 +49,7 @@ export function useLoggedInAccounts() {
     currentUser,
     otherUsers,
     setLogin: (id: string) => {
-      accountManager.setActiveAccount(id);
+      accountManager.setActive(id);
     },
     removeLogin: (id: string) => {
       accountManager.removeAccount(id);

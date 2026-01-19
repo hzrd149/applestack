@@ -31,7 +31,6 @@ export function useAccount() {
   return {
     pubkey: account.pubkey,
     signer: account.signer,
-    label: account.label,
   };
 }
 

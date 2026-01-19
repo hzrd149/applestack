@@ -1,25 +1,22 @@
 import { useCallback, useState } from "react";
 import { useAccount } from "./useAccount";
-import { factory } from "@/services/actions";
 import { publish } from "@/services/pool";
-import type { EventBlueprint, Operation } from "applesauce-factory";
-import type { NostrEvent } from "nostr-tools";
-import { addTag } from "applesauce-factory/operations/tags";
+import type { NostrEvent, EventTemplate } from "nostr-tools";
+import { finalizeEvent } from "nostr-tools";
 
 /**
- * Hook for publishing events using blueprints and operations.
+ * Hook for publishing events.
  * Automatically adds client tag and handles signing.
  *
  * @example
  * ```tsx
  * import { usePublish } from '@/hooks/usePublish';
- * import { NoteBlueprint } from 'applesauce-common/blueprints';
  *
  * function PostForm() {
  *   const { publishEvent, isPending } = usePublish();
  *
  *   const handleSubmit = async () => {
- *     await publishEvent(NoteBlueprint('Hello Nostr!'));
+ *     await publishEvent({ kind: 1, content: 'Hello Nostr!', tags: [] });
  *   };
  *
  *   return <button onClick={handleSubmit} disabled={isPending}>Post</button>;
@@ -32,7 +29,7 @@ export function usePublish() {
   const [error, setError] = useState<Error | null>(null);
 
   const publishEvent = useCallback(
-    async (blueprint: EventBlueprint, ...operations: Operation[]): Promise<NostrEvent> => {
+    async (template: EventTemplate): Promise<NostrEvent> => {
       if (!account) {
         throw new Error("User is not logged in");
       }
@@ -42,19 +39,26 @@ export function usePublish() {
 
       try {
         // Add client tag if on HTTPS
-        const ops: Operation[] = [...operations];
-        if (location.protocol === "https:") {
-          ops.push(addTag(["client", location.hostname]));
+        const tags = [...(template.tags || [])];
+        if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
+          tags.push(["client", location.hostname]);
         }
 
-        // Create and sign event
-        const event = await factory.create(blueprint, ...ops);
+        // Create the event template with client tag
+        const eventTemplate: EventTemplate = {
+          ...template,
+          tags,
+          created_at: template.created_at ?? Math.floor(Date.now() / 1000),
+        };
+
+        // Sign the event using the signer
+        const signedEvent = await account.signer.signEvent(eventTemplate);
 
         // Publish to relays
-        await publish(event);
+        await publish(signedEvent);
 
-        console.log("Event published successfully:", event);
-        return event;
+        console.log("Event published successfully:", signedEvent);
+        return signedEvent;
       } catch (err) {
         const error = err instanceof Error ? err : new Error("Failed to publish event");
         setError(error);

@@ -1,5 +1,4 @@
-import { ExtensionSigner, PasswordSigner } from "applesauce-signers";
-import { NostrConnectSigner } from "applesauce-signers";
+import { ExtensionSigner, PrivateKeySigner, NostrConnectSigner } from "applesauce-signers";
 import { accountManager } from "@/services/accounts";
 import { nip19 } from "nostr-tools";
 import { toast } from "@/hooks/useToast";
@@ -14,7 +13,7 @@ export function useLoginActions() {
   return {
     /**
      * Login with a Nostr secret key (nsec).
-     * Creates a PasswordSigner and adds it to the account manager.
+     * Creates a PrivateKeySigner and adds it to the account manager.
      */
     async nsec(nsec: string): Promise<void> {
       try {
@@ -24,8 +23,8 @@ export function useLoginActions() {
           throw new Error("Invalid nsec format");
         }
 
-        // Create password signer with the secret key
-        const signer = new PasswordSigner(decoded.data);
+        // Create private key signer with the secret key
+        const signer = new PrivateKeySigner(decoded.data);
 
         // Get pubkey
         const pubkey = await signer.getPublicKey();
@@ -34,10 +33,9 @@ export function useLoginActions() {
         accountManager.addAccount({
           pubkey,
           signer,
-          label: "Secret Key",
         });
 
-        accountManager.setActiveAccount(pubkey);
+        accountManager.setActive(pubkey);
       } catch (error) {
         console.error("Failed to login with nsec:", error);
         throw new Error("Invalid secret key");
@@ -50,21 +48,30 @@ export function useLoginActions() {
      */
     async bunker(uri: string): Promise<void> {
       try {
-        // Create Nostr Connect signer
-        const signer = new NostrConnectSigner(uri);
+        // Parse the bunker URI to get options
+        // Format: bunker://pubkey?relay=wss://...&secret=...
+        const url = new URL(uri);
+        const remote = url.hostname || url.pathname.replace('//', '');
+        const relays = url.searchParams.getAll('relay');
+        const secret = url.searchParams.get('secret') || undefined;
 
-        // Connect and get pubkey
-        await signer.connect();
+        // Create Nostr Connect signer with options
+        const signer = new NostrConnectSigner({
+          relays: relays.length > 0 ? relays : ['wss://relay.nsec.app'],
+          remote,
+          secret,
+        });
+
+        // Get pubkey (NostrConnectSigner should handle connection internally)
         const pubkey = await signer.getPublicKey();
 
         // Add to account manager
         accountManager.addAccount({
           pubkey,
           signer,
-          label: "Remote Signer",
         });
 
-        accountManager.setActiveAccount(pubkey);
+        accountManager.setActive(pubkey);
       } catch (error) {
         console.error("Failed to login with bunker:", error);
         throw new Error("Failed to connect to remote signer");
@@ -77,7 +84,7 @@ export function useLoginActions() {
      */
     async extension(): Promise<void> {
       try {
-        if (!window.nostr) {
+        if (!('nostr' in window)) {
           throw new Error("Nostr extension not found. Please install a NIP-07 extension.");
         }
 
@@ -88,12 +95,11 @@ export function useLoginActions() {
         const pubkey = await signer.getPublicKey();
 
         // Check if this account is already logged in
-        const existingAccounts = accountManager.getAccounts();
-        const existing = existingAccounts.find((acc) => acc.pubkey === pubkey);
+        const existing = accountManager.getAccountForPubkey(pubkey);
 
         if (existing) {
           // Just switch to the existing account
-          accountManager.setActiveAccount(pubkey);
+          accountManager.setActive(existing.pubkey);
           toast({
             title: "Already logged in",
             description: "Switched to existing account",
@@ -105,10 +111,9 @@ export function useLoginActions() {
         accountManager.addAccount({
           pubkey,
           signer,
-          label: "Extension",
         });
 
-        accountManager.setActiveAccount(pubkey);
+        accountManager.setActive(pubkey);
       } catch (error) {
         console.error("Failed to login with extension:", error);
         throw error;
@@ -120,7 +125,7 @@ export function useLoginActions() {
      * Removes the active account from the account manager.
      */
     logout(): void {
-      const activeAccount = accountManager.getActiveAccount();
+      const activeAccount = accountManager.getActive();
       if (activeAccount) {
         accountManager.removeAccount(activeAccount.pubkey);
       }

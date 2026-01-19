@@ -3,10 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAccount } from '@/hooks/useAccount';
 import { useMyProfile } from '@/hooks/useProfile';
-import { useAction } from '@/hooks/useAction';
-import { UpdateProfile } from 'applesauce-actions/actions';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
+import { actionHub, Actions } from '@/services/actions';
 import {
   Form,
   FormControl,
@@ -20,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Upload } from 'lucide-react';
-import type { NostrMetadata } from 'applesauce-core/helpers';
+import type { NostrMetadata } from '@/types/nostr';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { z } from 'zod';
 
@@ -38,7 +37,6 @@ const metadataSchema = z.object({
 export const EditProfileForm: React.FC = () => {
   const account = useAccount();
   const profile = useMyProfile();
-  const updateProfile = useAction(UpdateProfile);
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
 
@@ -105,26 +103,27 @@ export const EditProfileForm: React.FC = () => {
 
     setIsPending(true);
 
-    try {
-      // Combine existing metadata with new values
-      const data = { ...profile, ...values };
+      try {
+        // Combine existing metadata with new values
+        const data = { ...profile, ...values };
 
-      // Clean up empty values
-      const cleanData: Record<string, any> = {};
-      for (const key in data) {
-        if (data[key] !== '' && data[key] !== undefined) {
-          cleanData[key] = data[key];
+        // Clean up empty values
+        const cleanData: Record<string, any> = {};
+        for (const key in data) {
+          if (data[key] !== '' && data[key] !== undefined) {
+            cleanData[key] = data[key];
+          }
         }
-      }
 
-      // Use UpdateProfile action from applesauce-actions
-      await updateProfile(cleanData);
+        // Use UpdateProfile action from applesauce-actions via ActionHub
+        const user = actionHub.getUser(account.pubkey);
+        await user.run(Actions.UpdateProfile, cleanData);
 
-      toast({
-        title: 'Success',
-        description: 'Your profile has been updated',
-      });
-    } catch (error) {
+        toast({
+          title: 'Success',
+          description: 'Your profile has been updated',
+        });
+      } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
         title: 'Error',
