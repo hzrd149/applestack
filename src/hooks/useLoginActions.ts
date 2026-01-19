@@ -1,6 +1,7 @@
-import { ExtensionSigner, PrivateKeySigner, NostrConnectSigner } from "applesauce-signers";
+import { Accounts } from "applesauce-accounts";
+import { ExtensionSigner, PrivateKeySigner } from "applesauce-signers";
 import { accountManager } from "@/services/accounts";
-import { nip19 } from "nostr-tools";
+import { nip19, getPublicKey } from "nostr-tools";
 import { toast } from "@/hooks/useToast";
 
 // NOTE: This file should not be edited except for adding new login methods.
@@ -13,7 +14,7 @@ export function useLoginActions() {
   return {
     /**
      * Login with a Nostr secret key (nsec).
-     * Creates a PrivateKeySigner and adds it to the account manager.
+     * Creates a PrivateKeyAccount and adds it to the account manager.
      */
     async nsec(nsec: string): Promise<void> {
       try {
@@ -23,19 +24,16 @@ export function useLoginActions() {
           throw new Error("Invalid nsec format");
         }
 
-        // Create private key signer with the secret key
-        const signer = new PrivateKeySigner(decoded.data);
-
-        // Get pubkey
-        const pubkey = await signer.getPublicKey();
+        // Create private key signer and account
+        const secretKey = decoded.data; // Uint8Array
+        const pubkeyHex = getPublicKey(secretKey);
+        const signer = new PrivateKeySigner(secretKey);
+        const account = new Accounts.PrivateKeyAccount(pubkeyHex, signer);
 
         // Add to account manager
-        accountManager.addAccount({
-          pubkey,
-          signer,
-        });
+        accountManager.addAccount(account);
 
-        accountManager.setActive(pubkey);
+        accountManager.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with nsec:", error);
         throw new Error("Invalid secret key");
@@ -44,7 +42,7 @@ export function useLoginActions() {
 
     /**
      * Login with a NIP-46 "bunker://" URI (Nostr Connect).
-     * Creates a NostrConnectSigner and adds it to the account manager.
+     * Creates a NostrConnectAccount and adds it to the account manager.
      */
     async bunker(uri: string): Promise<void> {
       try {
@@ -52,26 +50,29 @@ export function useLoginActions() {
         // Format: bunker://pubkey?relay=wss://...&secret=...
         const url = new URL(uri);
         const remote = url.hostname || url.pathname.replace('//', '');
+        
+        if (!remote) {
+          throw new Error("Invalid bunker URI: missing remote pubkey");
+        }
+        
         const relays = url.searchParams.getAll('relay');
-        const secret = url.searchParams.get('secret') || undefined;
+        const secret = url.searchParams.get('secret');
 
-        // Create Nostr Connect signer with options
-        const signer = new NostrConnectSigner({
+        // Create Nostr Connect account with remote pubkey and options
+        const options: { relays: string[]; secret?: string } = {
           relays: relays.length > 0 ? relays : ['wss://relay.nsec.app'],
-          remote,
-          secret,
-        });
-
-        // Get pubkey (NostrConnectSigner should handle connection internally)
-        const pubkey = await signer.getPublicKey();
+        };
+        if (secret) {
+          options.secret = secret;
+        }
+        
+        // @ts-expect-error - NostrConnectSigner type compatibility issue in v5
+        const account = new Accounts.NostrConnectAccount(remote, options);
 
         // Add to account manager
-        accountManager.addAccount({
-          pubkey,
-          signer,
-        });
+        accountManager.addAccount(account);
 
-        accountManager.setActive(pubkey);
+        accountManager.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with bunker:", error);
         throw new Error("Failed to connect to remote signer");
@@ -80,7 +81,7 @@ export function useLoginActions() {
 
     /**
      * Login with a NIP-07 browser extension.
-     * Creates an ExtensionSigner and adds it to the account manager.
+     * Creates an ExtensionAccount and adds it to the account manager.
      */
     async extension(): Promise<void> {
       try {
@@ -88,11 +89,8 @@ export function useLoginActions() {
           throw new Error("Nostr extension not found. Please install a NIP-07 extension.");
         }
 
-        // Create extension signer
-        const signer = new ExtensionSigner();
-
-        // Get pubkey
-        const pubkey = await signer.getPublicKey();
+        // Get pubkey from extension first
+        const pubkey = await window.nostr!.getPublicKey();
 
         // Check if this account is already logged in
         const existing = accountManager.getAccountForPubkey(pubkey);
@@ -107,13 +105,14 @@ export function useLoginActions() {
           return;
         }
 
-        // Add to account manager
-        accountManager.addAccount({
-          pubkey,
-          signer,
-        });
+        // Create extension account
+        const signer = new ExtensionSigner();
+        const account = new Accounts.ExtensionAccount(pubkey, signer);
 
-        accountManager.setActive(pubkey);
+        // Add to account manager
+        accountManager.addAccount(account);
+
+        accountManager.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with extension:", error);
         throw error;

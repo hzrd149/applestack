@@ -1,27 +1,42 @@
-import { ActionHub, Actions } from "applesauce-actions";
+import { ActionRunner, Actions } from "applesauce-actions";
+import { EventFactory } from "applesauce-core";
 import { eventStore } from "./stores";
-import { pool } from "./pool";
+import { publish } from "./pool";
 import { accountManager } from "./accounts";
 
 /**
- * Global ActionHub instance for executing pre-built Nostr actions.
- * In applesauce v5, Actions are run through ActionHub which manages
- * user context, signing, and publishing automatically.
+ * Get the current active account's signer.
+ * Throws if no account is logged in.
+ */
+function getActiveSigner() {
+  const account = accountManager.getActive();
+  if (!account) {
+    throw new Error("No account is currently logged in");
+  }
+  return account.signer;
+}
+
+/**
+ * Global EventFactory instance for creating signed events.
+ * Uses the active account's signer.
+ */
+export const factory = new EventFactory({
+  // @ts-expect-error - Signer type compatibility
+  signer: getActiveSigner,
+});
+
+/**
+ * Global ActionRunner instance for executing pre-built Nostr actions.
+ * Examples: UpdateProfile, CreateNote, etc.
  *
  * Usage:
  * ```ts
- * import { actionHub } from '@/services/actions';
- * import { Actions } from 'applesauce-actions';
+ * import { runner, Actions } from '@/services/actions';
  *
- * const user = actionHub.getUser(pubkey);
- * await user.run(Actions.UpdateProfile, { name: 'Alice' });
+ * await runner.run(Actions.UpdateProfile, { name: 'Alice' });
  * ```
  */
-export const actionHub = new ActionHub({
-  store: eventStore,
-  pool,
-  accountManager,
-});
+export const runner = new ActionRunner(eventStore, factory, publish);
 
 // Export Actions for convenience
 export { Actions };

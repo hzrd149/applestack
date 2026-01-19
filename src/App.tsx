@@ -10,7 +10,6 @@ import { accountManager } from '@/services/accounts';
 import '@/services/loaders'; // Initialize loaders
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { NWCProvider } from '@/contexts/NWCContext';
 import AppRouter from './AppRouter';
 
 const head = createHead({
@@ -24,14 +23,12 @@ export function App() {
     <UnheadProvider head={head}>
       <EventStoreProvider eventStore={eventStore}>
         <AccountsProvider manager={accountManager}>
-          <NWCProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Suspense>
-                <AppRouter />
-              </Suspense>
-            </TooltipProvider>
-          </NWCProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Suspense>
+              <AppRouter />
+            </Suspense>
+          </TooltipProvider>
         </AccountsProvider>
       </EventStoreProvider>
     </UnheadProvider>

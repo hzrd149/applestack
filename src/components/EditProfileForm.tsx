@@ -5,7 +5,7 @@ import { useAccount } from '@/hooks/useAccount';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
-import { actionHub, Actions } from '@/services/actions';
+import { runner, Actions } from '@/services/actions';
 import {
   Form,
   FormControl,
@@ -108,16 +108,15 @@ export const EditProfileForm: React.FC = () => {
         const data = { ...profile, ...values };
 
         // Clean up empty values
-        const cleanData: Record<string, any> = {};
+        const cleanData: Record<string, string | boolean> = {};
         for (const key in data) {
           if (data[key] !== '' && data[key] !== undefined) {
             cleanData[key] = data[key];
           }
         }
 
-        // Use UpdateProfile action from applesauce-actions via ActionHub
-        const user = actionHub.getUser(account.pubkey);
-        await user.run(Actions.UpdateProfile, cleanData);
+        // Use UpdateProfile action from applesauce-actions
+        await runner.run(Actions.UpdateProfile, cleanData);
 
         toast({
           title: 'Success',

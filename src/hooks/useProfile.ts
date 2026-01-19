@@ -1,8 +1,7 @@
-import { useMemo } from "react";
 import { use$ } from "./use$";
 import { useEventStore } from "./useEventStore";
 import { ProfileModel } from "applesauce-core/models";
-import type { NostrMetadata } from "@/types/nostr";
+import type { ProfileContent } from "applesauce-core/helpers";
 
 /**
  * Get a user's profile by their pubkey.
@@ -28,7 +27,7 @@ import type { NostrMetadata } from "@/types/nostr";
  * }
  * ```
  */
-export function useProfile(pubkey: string): NostrMetadata | undefined {
+export function useProfile(pubkey: string): ProfileContent | undefined {
   const store = useEventStore();
 
   const profile = use$(
@@ -38,6 +37,9 @@ export function useProfile(pubkey: string): NostrMetadata | undefined {
 
   return profile;
 }
+
+// Re-export for convenience
+import { useActiveAccount } from "applesauce-react/hooks";
 
 /**
  * Get the current user's own profile.
@@ -63,15 +65,15 @@ export function useProfile(pubkey: string): NostrMetadata | undefined {
  * }
  * ```
  */
-export function useMyProfile(): NostrMetadata | undefined {
+export function useMyProfile(): ProfileContent | undefined {
   const account = useActiveAccount();
+  const pubkey = account?.pubkey;
+
+  const profile = useProfile(pubkey || '');
 
   if (!account) {
     return undefined;
   }
 
-  return useProfile(account.pubkey);
+  return profile;
 }
-
-// Re-export for convenience
-import { useActiveAccount } from "applesauce-react/hooks";

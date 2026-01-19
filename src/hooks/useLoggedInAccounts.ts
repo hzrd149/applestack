@@ -1,12 +1,12 @@
 import { useAccounts, useActiveAccount } from "applesauce-react/hooks";
 import { useProfile } from "./useProfile";
-import type { NostrMetadata } from "@/types/nostr";
+import type { ProfileContent } from "applesauce-core/helpers";
 import { accountManager } from "@/services/accounts";
 
 export interface Account {
   id: string;
   pubkey: string;
-  metadata: NostrMetadata;
+  metadata: ProfileContent;
 }
 
 /**

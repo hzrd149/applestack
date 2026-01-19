@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { EventStoreProvider, AccountsProvider } from 'applesauce-react/providers';
 import { EventStore } from 'applesauce-core';
 import { AccountManager } from 'applesauce-accounts';
-import { NWCProvider } from '@/contexts/NWCContext';
 
 interface TestAppProps {
   children: React.ReactNode;
@@ -21,11 +20,9 @@ export function TestApp({ children }: TestAppProps) {
     <UnheadProvider head={head}>
       <EventStoreProvider eventStore={eventStore}>
         <AccountsProvider manager={accountManager}>
-          <NWCProvider>
-            <BrowserRouter>
-              {children}
-            </BrowserRouter>
-          </NWCProvider>
+          <BrowserRouter>
+            {children}
+          </BrowserRouter>
         </AccountsProvider>
       </EventStoreProvider>
     </UnheadProvider>

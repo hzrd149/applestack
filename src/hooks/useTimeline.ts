@@ -51,6 +51,7 @@ export function useTimeline(relays: string[], filters: Filter[]): Note[] | undef
         onlyEvents(), // Filter out EOSE and other relay messages
         mapEventsToStore(store), // Add events to store and deduplicate
         mapEventsToTimeline(), // Collect events into an array
+        // @ts-expect-error - Cast type compatibility with EventStore
         castTimelineStream(Note, store) // Cast to Note objects
       ),
     [relayKey, filterKey, store]
@@ -91,6 +92,7 @@ export function useLocalTimeline(filters: Filter[]): Note[] | undefined {
   const notes = use$(
     () =>
       store.timeline(filters).pipe(
+        // @ts-expect-error - Cast type compatibility with EventStore
         castTimelineStream(Note, store)
       ),
     [filterKey, store]

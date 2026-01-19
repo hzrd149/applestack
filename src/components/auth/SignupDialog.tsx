@@ -135,6 +135,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
           kind: 0,
           content: JSON.stringify(metadata),
           tags: [],
+          created_at: Math.floor(Date.now() / 1000),
         });
       }
     } catch {

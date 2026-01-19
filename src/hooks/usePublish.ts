@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import { useAccount } from "./useAccount";
 import { publish } from "@/services/pool";
 import type { NostrEvent, EventTemplate } from "nostr-tools";
-import { finalizeEvent } from "nostr-tools";
 
 /**
  * Hook for publishing events.

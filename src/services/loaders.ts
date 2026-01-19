@@ -3,7 +3,6 @@ import {
   createReactionsLoader,
   createAddressLoader,
 } from "applesauce-loaders/loaders";
-import { COMMENT_KIND } from "applesauce-core/helpers";
 import { pool } from "./pool";
 import { eventStore } from "./stores";
 import { cacheRequest } from "./cache";
@@ -47,22 +46,5 @@ export const reactionsLoader = createReactionsLoader(pool, {
   eventStore,
 });
 
-/**
- * Loader for comments (NIP-22, kind 1111).
- * Loads all comments for a given event.
- */
-export const commentsLoader = createAddressLoader(pool, {
-  cacheRequest,
-  eventStore,
-  kinds: [COMMENT_KIND],
-  lookupRelays: lookupRelays.getValue(),
-});
-
-// Attach loaders to the event store for automatic loading
-eventStore.eventLoader = createEventLoaderForStore(eventStore, pool, {
-  cacheRequest,
-  lookupRelays: lookupRelays.getValue(),
-  followRelayHints: true,
-});
-eventStore.addressableLoader = addressLoader;
-eventStore.replaceableLoader = addressLoader;
+// EventStore in v5 doesn't have loader properties
+// Loaders are used directly by consumers instead

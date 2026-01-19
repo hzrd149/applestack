@@ -28,5 +28,5 @@ export interface NostrMetadata {
   /** A web URL related in any way to the event author */
   website?: string;
   /** Any other custom fields */
-  [key: string]: any;
+  [key: string]: string | boolean | undefined;
 }

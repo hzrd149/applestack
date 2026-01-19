@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { type NostrEvent } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
-import { useAuthor } from '@/hooks/useAuthor';
+import { nip19, type NostrEvent } from 'nostr-tools';
+import { useProfile } from '@/hooks/useProfile';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
@@ -121,10 +120,10 @@ export function NoteContent({
 
 // Helper component to display user mentions
 function NostrMention({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
+  const profile = useProfile(pubkey);
   const npub = nip19.npubEncode(pubkey);
-  const hasRealName = !!author.data?.metadata?.name;
-  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const hasRealName = !!profile?.name;
+  const displayName = profile?.name ?? genUserName(pubkey);
 
   return (
     <Link 

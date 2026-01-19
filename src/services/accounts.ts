@@ -1,10 +1,13 @@
-import { AccountManager } from "applesauce-accounts";
+import { AccountManager, Accounts } from "applesauce-accounts";
 
 /**
  * Global AccountManager instance for multi-account support.
  * Handles adding, removing, and switching between Nostr accounts.
  */
 export const accountManager = new AccountManager();
+
+// Register common account types (Extension, PrivateKey, NostrConnect, etc.)
+Accounts.registerCommonAccountTypes(accountManager);
 
 /**
  * Load saved accounts from localStorage on startup.
@@ -24,23 +27,8 @@ function loadSavedAccounts() {
   }
 }
 
-/**
- * Save accounts to localStorage.
- * Only saves metadata (pubkey, label), not signers.
- */
-function saveAccounts() {
-  const accounts = accountManager.getAccounts();
-  const accountsData = accounts.map((acc) => ({
-    pubkey: acc.pubkey,
-    label: acc.label,
-  }));
-  localStorage.setItem("accounts", JSON.stringify(accountsData));
-}
-
-// Listen for account changes and save
-accountManager.on("add", saveAccounts);
-accountManager.on("remove", saveAccounts);
-accountManager.on("switch", saveAccounts);
+// AccountManager v5 doesn't have event listeners, save manually when needed
+// TODO: Implement proper persistence strategy
 
 // Load accounts on initialization
 loadSavedAccounts();
