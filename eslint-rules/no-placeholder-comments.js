@@ -14,7 +14,8 @@ export default {
     fixable: null,
     schema: [],
     messages: {
-      placeholderComment: "Placeholder comment detected: '{{comment}}'. This should be replaced with a real implementation.",
+      placeholderComment:
+        "Placeholder comment detected: '{{comment}}'. This should be replaced with a real implementation.",
     },
   },
 
@@ -24,10 +25,10 @@ export default {
     return {
       Program() {
         const comments = sourceCode.getAllComments();
-        
+
         comments.forEach((comment) => {
           const commentText = comment.value.trim();
-          
+
           // Check if comment starts with "In a real" (case-insensitive)
           if (commentText.toLowerCase().startsWith("in a real")) {
             context.report({

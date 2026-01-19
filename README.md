@@ -9,6 +9,7 @@ Applestack is a modern framework for building Nostr applications with React 18.x
 Get started with Applestack:
 
 ### 1. Clone & Install
+
 ```bash
 git clone https://github.com/yourusername/applestack.git
 cd applestack
@@ -16,12 +17,14 @@ pnpm install
 ```
 
 ### 2. Start Development
+
 ```bash
 pnpm run dev
 # Visit http://localhost:5173
 ```
 
 ### 3. Build for Production
+
 ```bash
 pnpm run build
 pnpm run preview
@@ -62,6 +65,7 @@ Applestack provides a complete foundation for building Nostr applications with:
 ## 🔧 Core Features
 
 ### Authentication & Users
+
 - `LoginArea` component with account switching
 - `useAccount` hook for authentication state
 - `useUser` and `useProfile` hooks for user data
@@ -69,12 +73,14 @@ Applestack provides a complete foundation for building Nostr applications with:
 - Multi-account management with extension, nsec, and bunker support
 
 ### Nostr Protocol Support
+
 - **Social Features**: User profiles (NIP-01), follow lists (NIP-02), reactions (NIP-25)
 - **Messaging**: Private DMs (NIP-04, NIP-17) with encryption (NIP-44)
 - **Payments**: Lightning zaps (NIP-57) with wallet integration
 - **Content**: Long-form articles (NIP-23), calendars (NIP-52), and custom kinds
 
 ### Data Management with Applesauce
+
 - `useTimeline` hook for reactive event feeds
 - `usePublish` hook for event publishing with automatic client tagging
 - `use$` hook for subscribing to RxJS observables
@@ -83,6 +89,7 @@ Applestack provides a complete foundation for building Nostr applications with:
 - Built-in loaders for infinite scroll and pagination
 
 ### UI Components
+
 - 48+ shadcn/ui components (buttons, forms, dialogs, etc.)
 - Authentication components (LoginDialog, SignupDialog, AccountSwitcher)
 - NIP-65 relay management with RelayListManager
@@ -91,6 +98,7 @@ Applestack provides a complete foundation for building Nostr applications with:
 - Responsive design with `useIsMobile` hook
 
 ### Advanced Features
+
 - NIP-19 identifier routing (`npub1`, `note1`, `nevent1`, `naddr1`)
 - Cryptographic operations (NIP-44 encryption/decryption)
 - Lightning payments and zaps
@@ -103,12 +111,14 @@ Applestack provides a complete foundation for building Nostr applications with:
 Applestack provides powerful React hooks built on Applesauce:
 
 ### Event Management
+
 - **`use$`**: Subscribe to RxJS observables with automatic cleanup
 - **`useEventStore`**: Access the global EventStore instance
 - **`useTimeline`**: Subscribe to live event timelines from relays
 - **`useLocalTimeline`**: Query events from local EventStore only
 
 ### User & Authentication
+
 - **`useAccount`**: Get the currently logged-in account
 - **`useUser`**: Create a User cast with reactive profile and contacts
 - **`useProfile`**: Get user profile metadata (uses User cast internally)
@@ -116,10 +126,12 @@ Applestack provides powerful React hooks built on Applesauce:
 - **`useLoginActions`**: Access login methods (extension, nsec, bunker)
 
 ### Publishing & Actions
+
 - **`usePublish`**: Publish events with automatic signing
 - **`useAction`**: Execute pre-built actions (CreateNote, FollowUser, etc.)
 
 ### Utilities
+
 - **`useTheme`**: Theme management (light/dark mode)
 - **`useToast`**: Toast notifications
 - **`useIsMobile`**: Responsive design helper
@@ -164,7 +176,7 @@ MKStack includes 48+ shadcn/ui components:
 **Feedback**: Alert, AlertDialog, Toast, Progress, Skeleton
 **Overlay**: Dialog, Popover, HoverCard, Tooltip, ContextMenu, DropdownMenu
 **Data Display**: Table, Avatar, Badge, Calendar, Chart, Carousel
-**And many more...
+\*\*And many more...
 
 ## 🔐 Security & Best Practices
 
@@ -198,6 +210,7 @@ npm run preview     # Preview production build locally
 ```
 
 Deploy to your preferred platform:
+
 - **Vercel**: `vercel deploy`
 - **Netlify**: `netlify deploy --prod`
 - **GitHub Pages**: Configure in your repository settings
@@ -226,6 +239,7 @@ Applestack is open source and welcomes contributions. The framework is designed 
 - **Documented**: Clear patterns and implementation guides in `docs/`
 
 To contribute:
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes following the project patterns
@@ -240,4 +254,4 @@ MIT License - Open source and free to use. Build amazing Nostr applications and 
 
 **Built with Applestack** - A production-ready Nostr client framework powered by Applesauce v5.
 
-*Reactive, type-safe, and ready for production.*
+_Reactive, type-safe, and ready for production._

@@ -37,7 +37,7 @@ Use this skill when you need to:
 Import from your hooks directory:
 
 ```typescript
-import { use$ } from '@/hooks/use$';
+import { use$ } from "@/hooks/use$";
 ```
 
 ### Type Signatures
@@ -60,9 +60,9 @@ use$<T>(factory: () => Observable<T> | undefined, deps: any[]): T | undefined
 **This is the most common pattern.** Use when the observable depends on props, state, or context:
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { ProfileModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { ProfileModel } from "applesauce-core/models";
 
 function UserProfile({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
@@ -70,7 +70,7 @@ function UserProfile({ pubkey }: { pubkey: string }) {
   // Factory recreates observable when pubkey or store changes
   const profile = use$(
     () => store.model(ProfileModel, pubkey),
-    [pubkey, store]
+    [pubkey, store],
   );
 
   if (!profile) return <Skeleton />;
@@ -84,10 +84,10 @@ function UserProfile({ pubkey }: { pubkey: string }) {
 Use for global observables that don't need to be recreated:
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { BehaviorSubject } from 'rxjs';
+import { use$ } from "@/hooks/use$";
+import { BehaviorSubject } from "rxjs";
 
-const theme$ = new BehaviorSubject<'light' | 'dark'>('light');
+const theme$ = new BehaviorSubject<"light" | "dark">("light");
 
 function ThemeDisplay() {
   const theme = use$(theme$);
@@ -100,8 +100,8 @@ function ThemeDisplay() {
 Applesauce casts expose properties as observables:
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { Note } from 'applesauce-common/casts';
+import { use$ } from "@/hooks/use$";
+import { Note } from "applesauce-common/casts";
 
 function NoteCard({ note }: { note: Note }) {
   // Subscribe to nested observables
@@ -111,7 +111,7 @@ function NoteCard({ note }: { note: Note }) {
 
   return (
     <div>
-      <span>{author?.name ?? 'Anonymous'}</span>
+      <span>{author?.name ?? "Anonymous"}</span>
       <p>{note.content}</p>
       <span>{reactions?.length ?? 0} reactions</span>
       <span>{replyCount ?? 0} replies</span>
@@ -125,36 +125,28 @@ function NoteCard({ note }: { note: Note }) {
 Combine multiple observables with RxJS operators:
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { combineLatest } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { use$ } from "@/hooks/use$";
+import { combineLatest } from "rxjs";
+import { map } from "rxjs/operators";
 
 function ContactsWithRelays({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
 
-  const contacts = use$(
-    () => {
-      const user = store.castUser(pubkey);
-      return user ? user.contacts$ : undefined;
-    },
-    [pubkey, store]
-  );
+  const contacts = use$(() => {
+    const user = store.castUser(pubkey);
+    return user ? user.contacts$ : undefined;
+  }, [pubkey, store]);
 
   // Combine each contact's outboxes
-  const contactsWithOutboxes = use$(
-    () => {
-      if (!contacts) return undefined;
+  const contactsWithOutboxes = use$(() => {
+    if (!contacts) return undefined;
 
-      return combineLatest(
-        contacts.map(contact =>
-          contact.outboxes$.pipe(
-            map(outboxes => ({ contact, outboxes }))
-          )
-        )
-      );
-    },
-    [contacts?.map(c => c.pubkey).join(',')]
-  );
+    return combineLatest(
+      contacts.map((contact) =>
+        contact.outboxes$.pipe(map((outboxes) => ({ contact, outboxes }))),
+      ),
+    );
+  }, [contacts?.map((c) => c.pubkey).join(",")]);
 
   return <div>...</div>;
 }
@@ -169,7 +161,7 @@ The dependency array controls when the observable is recreated.
 ```tsx
 const profile = use$(
   () => store.model(ProfileModel, pubkey),
-  [pubkey, store]  // Both used in factory
+  [pubkey, store], // Both used in factory
 );
 ```
 
@@ -179,13 +171,13 @@ const profile = use$(
 // For arrays - use .join()
 const events = use$(
   () => pool.req(relays, filters),
-  [relays.join(','), JSON.stringify(filters)]
+  [relays.join(","), JSON.stringify(filters)],
 );
 
 // For optional arrays - use optional chaining
 const data = use$(
   () => fetchData(contacts),
-  [contacts?.map(c => c.pubkey).join(',')]
+  [contacts?.map((c) => c.pubkey).join(",")],
 );
 ```
 
@@ -195,7 +187,7 @@ const data = use$(
 // WRONG - infinite re-subscriptions!
 const events = use$(
   () => pool.req(relays, filters),
-  [relays, filters]  // References change every render
+  [relays, filters], // References change every render
 );
 ```
 
@@ -205,7 +197,7 @@ const events = use$(
 // WRONG - stale data!
 const profile = use$(
   () => store.model(ProfileModel, pubkey),
-  []  // pubkey changes won't update!
+  [], // pubkey changes won't update!
 );
 ```
 
@@ -229,8 +221,8 @@ function UserProfile({ pubkey }: { pubkey: string }) {
 **Exception:** BehaviorSubjects always have a current value:
 
 ```tsx
-const theme$ = new BehaviorSubject('light');
-const theme = use$(theme$);  // Never undefined
+const theme$ = new BehaviorSubject("light");
+const theme = use$(theme$); // Never undefined
 ```
 
 ## Common Mistakes to Avoid
@@ -264,10 +256,7 @@ if (condition) {
 }
 
 // ✅ CORRECT
-const data = use$(
-  () => condition ? observable$ : undefined,
-  [condition]
-);
+const data = use$(() => (condition ? observable$ : undefined), [condition]);
 ```
 
 ### 4. Not Handling Undefined
@@ -275,11 +264,11 @@ const data = use$(
 ```tsx
 // ❌ WRONG - runtime error
 const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey]);
-return <div>{profile.name}</div>;  // Error if undefined!
+return <div>{profile.name}</div>; // Error if undefined!
 
 // ✅ CORRECT
 const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey]);
-return <div>{profile?.name ?? 'Loading...'}</div>;
+return <div>{profile?.name ?? "Loading..."}</div>;
 ```
 
 ## Performance Tips
@@ -288,13 +277,13 @@ return <div>{profile?.name ?? 'Loading...'}</div>;
 
 ```tsx
 // ❌ Bad - creates new array every render
-const pubkeys = items.map(i => i.pubkey);
+const pubkeys = items.map((i) => i.pubkey);
 const data = use$(() => fetch(pubkeys), [pubkeys]);
 
 // ✅ Good - stable string reference
 const data = use$(
-  () => fetch(items.map(i => i.pubkey)),
-  [items.map(i => i.pubkey).join(',')]
+  () => fetch(items.map((i) => i.pubkey)),
+  [items.map((i) => i.pubkey).join(",")],
 );
 ```
 
@@ -303,13 +292,10 @@ const data = use$(
 ```tsx
 const stableKey = useMemo(
   () => JSON.stringify(complexConfig),
-  [complexConfig.field1, complexConfig.field2]
+  [complexConfig.field1, complexConfig.field2],
 );
 
-const data = use$(
-  () => fetchData(complexConfig),
-  [stableKey]
-);
+const data = use$(() => fetchData(complexConfig), [stableKey]);
 ```
 
 ## Error Handling
@@ -317,7 +303,7 @@ const data = use$(
 Errors from observables are thrown and caught by React Error Boundaries:
 
 ```tsx
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary } from "react-error-boundary";
 
 function App() {
   return (
@@ -330,14 +316,14 @@ function App() {
 
 ## Quick Reference
 
-| Pattern | When to Use | Example |
-|---------|-------------|---------|
-| Factory function | Observable depends on props/state | `use$(() => store.model(Model, id), [id])` |
-| Direct observable | Global observable, no dependencies | `use$(globalObservable$)` |
-| Nested properties | Cast properties like `profile$`, `reactions$` | `use$(note.author.profile$)` |
-| Side effects | Relay subscriptions, loaders | `use$(() => pool.subscription(...), [deps])` |
-| Chained observables | Combining multiple sources | `use$(() => combineLatest([...]), [deps])` |
-| Conditional | Optional observable | `use$(() => cond ? obs$ : undefined, [cond])` |
+| Pattern             | When to Use                                   | Example                                       |
+| ------------------- | --------------------------------------------- | --------------------------------------------- |
+| Factory function    | Observable depends on props/state             | `use$(() => store.model(Model, id), [id])`    |
+| Direct observable   | Global observable, no dependencies            | `use$(globalObservable$)`                     |
+| Nested properties   | Cast properties like `profile$`, `reactions$` | `use$(note.author.profile$)`                  |
+| Side effects        | Relay subscriptions, loaders                  | `use$(() => pool.subscription(...), [deps])`  |
+| Chained observables | Combining multiple sources                    | `use$(() => combineLatest([...]), [deps])`    |
+| Conditional         | Optional observable                           | `use$(() => cond ? obs$ : undefined, [cond])` |
 
 ## Remember
 

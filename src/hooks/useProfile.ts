@@ -26,13 +26,12 @@ import type { ProfileContent } from "applesauce-core/helpers";
  * }
  * ```
  */
-export function useProfile(pubkey: string | undefined): ProfileContent | undefined {
+export function useProfile(
+  pubkey: string | undefined,
+): ProfileContent | undefined {
   const user = useUser(pubkey);
 
-  const profile = use$(
-    () => user?.profile$,
-    [user?.pubkey]
-  );
+  const profile = use$(() => user?.profile$, [user?.pubkey]);
 
   return profile;
 }
@@ -66,10 +65,7 @@ import { useMyUser } from "./useUser";
 export function useMyProfile(): ProfileContent | undefined {
   const user = useMyUser();
 
-  const profile = use$(
-    () => user?.profile$,
-    [user?.pubkey]
-  );
+  const profile = use$(() => user?.profile$, [user?.pubkey]);
 
   return profile;
 }

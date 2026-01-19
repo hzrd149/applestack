@@ -1,262 +1,591 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useActiveAccount } from 'applesauce-react/hooks';
-import { useMyProfile } from '@/hooks/useProfile';
-import { useToast } from '@/hooks/useToast';
-import { Button } from '@/components/ui/button';
-import { runner, Actions } from '@/services/actions';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Loader2 } from 'lucide-react';
-import type { NostrMetadata } from '@/types/nostr';
-import { z } from 'zod';
+import React, { useEffect, useMemo } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useActiveAccount } from "applesauce-react/hooks";
+import { useMyProfile } from "@/hooks/useProfile";
+import { useToast } from "@/hooks/useToast";
+import { Button } from "@/components/ui/button";
+import { runner, Actions } from "@/services/actions";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2 } from "lucide-react";
+import type { ProfileContent } from "applesauce-core/helpers";
+import { z } from "zod";
+
+// Zod schema for birthday
+const birthdaySchema = z
+  .object({
+    year: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
+    month: z.number().int().min(1).max(12).optional(),
+    day: z.number().int().min(1).max(31).optional(),
+  })
+  .optional();
 
 // Validation schema for profile metadata
 const metadataSchema = z.object({
   name: z.string().optional(),
+  display_name: z.string().optional(),
   about: z.string().optional(),
-  picture: z.string().url().optional().or(z.literal('')),
-  banner: z.string().url().optional().or(z.literal('')),
-  website: z.string().url().optional().or(z.literal('')),
+  picture: z
+    .string()
+    .refine((val) => !val || z.string().url().safeParse(val).success, {
+      message: "Must be a valid URL",
+    })
+    .optional(),
+  banner: z
+    .string()
+    .refine((val) => !val || z.string().url().safeParse(val).success, {
+      message: "Must be a valid URL",
+    })
+    .optional(),
+  website: z
+    .string()
+    .refine((val) => !val || z.string().url().safeParse(val).success, {
+      message: "Must be a valid URL",
+    })
+    .optional(),
+  lud16: z
+    .string()
+    .refine((val) => !val || z.string().email().safeParse(val).success, {
+      message: "Must be a valid email address",
+    })
+    .optional(),
+  lud06: z
+    .string()
+    .refine((val) => !val || z.string().email().safeParse(val).success, {
+      message: "Must be a valid email address",
+    })
+    .optional(),
   nip05: z.string().optional(),
   bot: z.boolean().optional(),
+  birthday: birthdaySchema,
+  languages: z.array(z.string()).optional(),
 });
+
+type ProfileFormData = z.infer<typeof metadataSchema>;
 
 export const EditProfileForm: React.FC = () => {
   const activeAccount = useActiveAccount();
   const profile = useMyProfile();
   const { toast } = useToast();
 
-  // Initialize the form with default values
-  const form = useForm<NostrMetadata>({
+  // Convert profile to form data, handling undefined values
+  const defaultValues = useMemo<ProfileFormData>(() => {
+    if (!profile) {
+      return {
+        name: "",
+        display_name: "",
+        about: "",
+        picture: "",
+        banner: "",
+        website: "",
+        lud16: "",
+        lud06: "",
+        nip05: "",
+        bot: false,
+        birthday: undefined,
+        languages: [],
+      };
+    }
+
+    return {
+      name: profile.name || "",
+      display_name: profile.display_name || profile.displayName || "",
+      about: profile.about || "",
+      picture: profile.picture || profile.image || "",
+      banner: profile.banner || "",
+      website: profile.website || "",
+      lud16: profile.lud16 || "",
+      lud06: profile.lud06 || "",
+      nip05: profile.nip05 || "",
+      bot: profile.bot || false,
+      birthday: profile.birthday,
+      languages: profile.languages || [],
+    };
+  }, [profile]);
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<ProfileFormData>({
     resolver: zodResolver(metadataSchema),
-    defaultValues: {
-      name: '',
-      about: '',
-      picture: '',
-      banner: '',
-      website: '',
-      nip05: '',
-      bot: false,
-    },
+    defaultValues,
+    mode: "onChange",
   });
 
-  // Update form values when user data is loaded
+  // Watch form values for live preview
+  const watchedValues = useWatch({ control });
+
+  // Reset form when profile loads
   useEffect(() => {
-    if (profile) {
-      form.reset({
-        name: profile.name || '',
-        about: profile.about || '',
-        picture: profile.picture || '',
-        banner: profile.banner || '',
-        website: profile.website || '',
-        nip05: profile.nip05 || '',
-        bot: profile.bot || false,
-      });
-    }
-  }, [profile, form]);
+    reset(defaultValues);
+  }, [defaultValues, reset]);
 
   const [isPending, setIsPending] = React.useState(false);
 
-  const onSubmit = async (values: NostrMetadata) => {
+  const onSubmit = async (data: ProfileFormData) => {
     if (!activeAccount) {
       toast({
-        title: 'Error',
-        description: 'You must be logged in to update your profile',
-        variant: 'destructive',
+        title: "Error",
+        description: "You must be logged in to update your profile",
+        variant: "destructive",
       });
       return;
     }
 
     setIsPending(true);
 
-      try {
-        // Combine existing metadata with new values
-        const data = { ...profile, ...values };
+    try {
+      // Convert form data to ProfileContent, removing empty strings
+      const profileUpdate: Partial<ProfileContent> = {};
 
-        // Clean up empty values
-        const cleanData: Record<string, string | boolean> = {};
-        for (const key in data) {
-          if (data[key] !== '' && data[key] !== undefined) {
-            cleanData[key] = data[key];
-          }
-        }
+      if (data.name) profileUpdate.name = data.name;
+      if (data.display_name) profileUpdate.display_name = data.display_name;
+      if (data.about) profileUpdate.about = data.about;
+      if (data.picture) profileUpdate.picture = data.picture;
+      if (data.banner) profileUpdate.banner = data.banner;
+      if (data.website) profileUpdate.website = data.website;
+      if (data.lud16) profileUpdate.lud16 = data.lud16;
+      if (data.lud06) profileUpdate.lud06 = data.lud06;
+      if (data.nip05) profileUpdate.nip05 = data.nip05;
+      if (data.bot !== undefined) profileUpdate.bot = data.bot;
+      if (data.birthday) profileUpdate.birthday = data.birthday;
+      if (data.languages && data.languages.length > 0)
+        profileUpdate.languages = data.languages;
 
-        // Use UpdateProfile action from applesauce-actions
-        await runner.run(Actions.UpdateProfile, cleanData);
+      // Use UpdateProfile action from applesauce-actions
+      await runner.run(Actions.UpdateProfile, profileUpdate);
 
-        toast({
-          title: 'Success',
-          description: 'Your profile has been updated',
-        });
-      } catch (error) {
-      console.error('Failed to update profile:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to update your profile. Please try again.',
-        variant: 'destructive',
+        title: "Success",
+        description: "Your profile has been updated",
+      });
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsPending(false);
     }
   };
 
+  // Get current values for preview
+  const currentBanner = watchedValues.banner || profile?.banner || "";
+  const currentPicture =
+    watchedValues.picture || profile?.picture || profile?.image || "";
+  const currentDisplayName =
+    watchedValues.display_name ||
+    profile?.display_name ||
+    profile?.displayName ||
+    "";
+  const currentName = watchedValues.name || profile?.name || "";
+  const currentWebsite = watchedValues.website || profile?.website || "";
+  const currentNip05 = watchedValues.nip05 || profile?.nip05 || "";
+  const currentLud16 = watchedValues.lud16 || profile?.lud16 || "";
+  const currentLud06 = watchedValues.lud06 || profile?.lud06 || "";
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Your name" {...field} />
-              </FormControl>
-              <FormDescription>
-                This is your display name that will be displayed to others.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="about"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Bio</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Tell others about yourself"
-                  className="resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                A short description about yourself.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="picture"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Profile Picture URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://example.com/profile.jpg" {...field} />
-                </FormControl>
-                <FormDescription>
-                  URL to your profile picture.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+    <div className="container mx-auto my-8 px-4 max-w-4xl">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Profile Preview Layout */}
+        <div className="bg-card rounded-lg overflow-hidden border">
+          {/* Banner */}
+          <div className="relative h-48 bg-muted">
+            {currentBanner ? (
+              <img
+                src={currentBanner}
+                alt="Banner"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-muted/50" />
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name="banner"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Banner Image URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://example.com/banner.jpg" {...field} />
-                </FormControl>
-                <FormDescription>
-                  URL to a wide banner image for your profile.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="website"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://yourwebsite.com" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Your personal website or social media link.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="nip05"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>NIP-05 Identifier</FormLabel>
-                <FormControl>
-                  <Input placeholder="you@example.com" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Your verified Nostr identifier.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="bot"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Bot Account</FormLabel>
-                <FormDescription>
-                  Mark this account as automated or a bot.
-                </FormDescription>
+            <div className="absolute bottom-0 left-6 transform translate-y-1/2">
+              {/* Avatar */}
+              <div className="w-32 h-32 rounded-full bg-background p-1 ring-4 ring-background">
+                {currentPicture ? (
+                  <img
+                    src={currentPicture}
+                    alt="Avatar"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-4xl">
+                    {currentDisplayName?.[0]?.toUpperCase() ||
+                      currentName?.[0]?.toUpperCase() ||
+                      "?"}
+                  </div>
+                )}
               </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+            </div>
+            {/* Banner URL input */}
+            <div className="absolute top-2 right-2">
+              <Controller
+                name="banner"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    type="url"
+                    {...field}
+                    placeholder="Banner URL"
+                    className={`bg-background/90 backdrop-blur-sm w-48 ${
+                      errors.banner ? "border-destructive" : ""
+                    }`}
+                  />
+                )}
+              />
+            </div>
+          </div>
 
-        <Button
-          type="submit"
-          className="w-full md:w-auto"
-          disabled={isPending}
-        >
-          {isPending && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
-          Save Profile
-        </Button>
+          {/* Profile Header */}
+          <div className="pt-20 px-6 pb-4">
+            {/* Avatar URL input */}
+            <div className="mb-4">
+              <label className="text-muted-foreground text-sm mb-1 block">
+                Avatar URL
+              </label>
+              <Controller
+                name="picture"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    type="url"
+                    {...field}
+                    placeholder="https://example.com/avatar.jpg"
+                    className={errors.picture ? "border-destructive" : ""}
+                  />
+                )}
+              />
+              {errors.picture && (
+                <span className="text-destructive text-sm">
+                  {errors.picture.message}
+                </span>
+              )}
+            </div>
+
+            {/* Display Name and Name as Title */}
+            <div className="mb-4">
+              <Controller
+                name="display_name"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    type="text"
+                    {...field}
+                    placeholder="Display Name"
+                    className={`text-3xl font-bold bg-transparent border-none p-0 w-full focus-visible:ring-2 focus-visible:ring-ring rounded px-2 -ml-2 h-auto ${
+                      errors.display_name ? "text-destructive" : ""
+                    }`}
+                  />
+                )}
+              />
+              {errors.display_name && (
+                <span className="text-destructive text-sm">
+                  {errors.display_name.message}
+                </span>
+              )}
+              <Controller
+                name="name"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    type="text"
+                    {...field}
+                    placeholder="Name"
+                    className={`text-xl text-muted-foreground bg-transparent border-none p-0 w-full focus-visible:ring-2 focus-visible:ring-ring rounded px-2 -ml-2 mt-1 h-auto ${
+                      errors.name ? "text-destructive" : ""
+                    }`}
+                  />
+                )}
+              />
+              {errors.name && (
+                <span className="text-destructive text-sm">
+                  {errors.name.message}
+                </span>
+              )}
+            </div>
+
+            {/* About */}
+            <div className="mb-4">
+              <Controller
+                name="about"
+                control={control}
+                render={({ field }) => (
+                  <Textarea
+                    {...field}
+                    placeholder="Tell us about yourself"
+                    className={`w-full min-h-24 p-0 border-none focus-visible:ring-2 focus-visible:ring-ring rounded px-2 -ml-2 resize-none ${
+                      errors.about ? "border-destructive" : ""
+                    }`}
+                  />
+                )}
+              />
+              {errors.about && (
+                <span className="text-destructive text-sm">
+                  {errors.about.message}
+                </span>
+              )}
+            </div>
+
+            {/* Contact Details */}
+            <div className="space-y-2 mb-4">
+              {currentWebsite && (
+                <div>
+                  <a
+                    href={currentWebsite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {currentWebsite}
+                  </a>
+                </div>
+              )}
+              {currentNip05 && (
+                <div className="text-muted-foreground">{currentNip05}</div>
+              )}
+              {currentLud16 && (
+                <div className="text-muted-foreground">⚡ {currentLud16}</div>
+              )}
+              {currentLud06 && (
+                <div className="text-muted-foreground">⚡ {currentLud06}</div>
+              )}
+            </div>
+
+            {/* Additional Fields */}
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  Website
+                </label>
+                <Controller
+                  name="website"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="url"
+                      {...field}
+                      placeholder="https://example.com"
+                      className={errors.website ? "border-destructive" : ""}
+                    />
+                  )}
+                />
+                {errors.website && (
+                  <span className="text-destructive text-sm">
+                    {errors.website.message}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  NIP-05
+                </label>
+                <Controller
+                  name="nip05"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="text"
+                      {...field}
+                      placeholder="_@domain.com or user@domain.com"
+                      className={errors.nip05 ? "border-destructive" : ""}
+                    />
+                  )}
+                />
+                {errors.nip05 && (
+                  <span className="text-destructive text-sm">
+                    {errors.nip05.message}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  Lightning Address (LUD-16)
+                </label>
+                <Controller
+                  name="lud16"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="email"
+                      {...field}
+                      placeholder="user@domain.com"
+                      className={errors.lud16 ? "border-destructive" : ""}
+                    />
+                  )}
+                />
+                {errors.lud16 && (
+                  <span className="text-destructive text-sm">
+                    {errors.lud16.message}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  Lightning Address (LUD-06)
+                </label>
+                <Controller
+                  name="lud06"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="email"
+                      {...field}
+                      placeholder="user@domain.com"
+                      className={errors.lud06 ? "border-destructive" : ""}
+                    />
+                  )}
+                />
+                {errors.lud06 && (
+                  <span className="text-destructive text-sm">
+                    {errors.lud06.message}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Controller
+                  name="bot"
+                  control={control}
+                  render={({ field }) => (
+                    <Checkbox
+                      checked={field.value || false}
+                      onCheckedChange={field.onChange}
+                      id="bot"
+                    />
+                  )}
+                />
+                <label
+                  htmlFor="bot"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Bot Account
+                </label>
+              </div>
+
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  Languages
+                </label>
+                <Controller
+                  name="languages"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="text"
+                      value={field.value?.join(", ") || ""}
+                      onChange={(e) => {
+                        const languages = e.target.value
+                          .split(",")
+                          .map((lang) => lang.trim())
+                          .filter((lang) => lang.length > 0);
+                        field.onChange(languages.length > 0 ? languages : []);
+                      }}
+                      placeholder="en, ja, es-AR"
+                    />
+                  )}
+                />
+              </div>
+
+              <div>
+                <label className="text-muted-foreground text-sm mb-1 block">
+                  Birthday
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Controller
+                    name="birthday.year"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          const year = e.target.value
+                            ? parseInt(e.target.value, 10)
+                            : undefined;
+                          field.onChange(year);
+                        }}
+                        placeholder="Year"
+                        min="1900"
+                        max={new Date().getFullYear()}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="birthday.month"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          const month = e.target.value
+                            ? parseInt(e.target.value, 10)
+                            : undefined;
+                          field.onChange(month);
+                        }}
+                        placeholder="Month"
+                        min="1"
+                        max="12"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="birthday.day"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          const day = e.target.value
+                            ? parseInt(e.target.value, 10)
+                            : undefined;
+                          field.onChange(day);
+                        }}
+                        placeholder="Day"
+                        min="1"
+                        max="31"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="mt-6">
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isPending || !isDirty}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Profile"
+            )}
+          </Button>
+        </div>
       </form>
-    </Form>
+    </div>
   );
 };

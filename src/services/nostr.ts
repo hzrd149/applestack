@@ -1,10 +1,10 @@
 import { EventStore } from "applesauce-core";
 import { persistEventsToCache, relaySet } from "applesauce-core/helpers";
 import {
-	createAddressLoader,
-	createEventLoaderForStore,
-	createReactionsLoader,
-	createZapsLoader,
+  createAddressLoader,
+  createEventLoaderForStore,
+  createReactionsLoader,
+  createZapsLoader,
 } from "applesauce-loaders/loaders";
 import { RelayPool } from "applesauce-relay";
 import { NostrConnectSigner } from "applesauce-signers";
@@ -12,7 +12,7 @@ import type { NostrEvent } from "nostr-tools";
 import { verifyEvent } from "nostr-tools";
 import { cacheRequest, saveEvents } from "./cache";
 import { extraRelays, lookupRelays } from "./settings";
-import 'window.nostrdb.js'
+import "window.nostrdb.js";
 
 /**
  * Global EventStore instance for all Nostr events.
@@ -28,7 +28,7 @@ export const eventStore = new EventStore({
 eventStore.verifyEvent = verifyEvent;
 
 // Persist events to the local nostrdb
-persistEventsToCache(eventStore, saveEvents)
+persistEventsToCache(eventStore, saveEvents);
 
 /**
  * Global RelayPool instance for all relay connections.
@@ -41,7 +41,7 @@ export const pool = new RelayPool();
  * This allows NostrConnectSigner instances to communicate with relays
  * for NIP-46 remote signing.
  */
-NostrConnectSigner.pool = pool
+NostrConnectSigner.pool = pool;
 
 /**
  * Publish an event to the configured relays.
@@ -52,7 +52,7 @@ NostrConnectSigner.pool = pool
  */
 export async function publish(
   event: NostrEvent,
-  relays?: string[]
+  relays?: string[],
 ): Promise<void> {
   console.log("Publishing event:", event);
 
@@ -60,7 +60,7 @@ export async function publish(
   eventStore.add(event);
 
   // Publish to relays
-  await pool.publish(relaySet(extraRelays.getValue(), relays), event)
+  await pool.publish(relaySet(extraRelays.getValue(), relays), event);
 }
 
 /**
@@ -103,6 +103,6 @@ export const reactionsLoader = createReactionsLoader(pool, {
 
 /** Create loader for loading zaps for other events */
 export const zapsLoader = createZapsLoader(pool, {
-	cacheRequest,
-	extraRelays,
-})
+  cacheRequest,
+  extraRelays,
+});

@@ -9,6 +9,7 @@ This rule prevents the use of inline script tags in HTML files. Inline scripts c
 ### Examples
 
 ❌ **Bad** - These will trigger the rule:
+
 ```html
 <!-- Inline JavaScript code -->
 <script>
@@ -17,11 +18,12 @@ This rule prevents the use of inline script tags in HTML files. Inline scripts c
 
 <!-- Inline JSON-LD structured data -->
 <script type="application/ld+json">
-  {"@context": "https://schema.org", "@type": "Organization"}
+  { "@context": "https://schema.org", "@type": "Organization" }
 </script>
 ```
 
 ✅ **Good** - These are fine:
+
 ```html
 <!-- External script files -->
 <script src="/js/app.js"></script>
@@ -34,6 +36,7 @@ This rule prevents the use of inline script tags in HTML files. Inline scripts c
 ### Configuration
 
 The rule is configured in `eslint.config.js` as:
+
 ```javascript
 "custom/no-inline-script": "error"
 ```
@@ -41,6 +44,7 @@ The rule is configured in `eslint.config.js` as:
 ### Purpose
 
 This rule helps maintain security best practices by:
+
 - Preventing XSS vulnerabilities from inline scripts
 - Enforcing Content Security Policy compliance
 - Encouraging separation of concerns (HTML structure vs JavaScript logic)
@@ -53,6 +57,7 @@ This rule detects and flags comments that start with "// In a real" (case-insens
 ### Examples
 
 ❌ **Bad** - These will trigger the rule:
+
 ```javascript
 // In a real application, this would connect to a database
 const data = [];
@@ -65,6 +70,7 @@ const handleError = () => {};
 ```
 
 ✅ **Good** - These are fine:
+
 ```javascript
 // This is a regular comment
 const data = [];
@@ -79,11 +85,13 @@ const handleError = () => {};
 ### Configuration
 
 The rule is configured in `eslint.config.js` as:
+
 ```javascript
 "custom/no-placeholder-comments": "error"
 ```
 
 You can change the severity level to:
+
 - `"off"` - Disable the rule
 - `"warn"` - Show as warning
 - `"error"` - Show as error (current setting)
@@ -99,6 +107,7 @@ This rule ensures that HTML files include a proper web manifest link tag and tha
 ### Examples
 
 ❌ **Bad** - These will trigger the rule:
+
 ```html
 <!-- Missing manifest link entirely -->
 <head>
@@ -107,31 +116,33 @@ This rule ensures that HTML files include a proper web manifest link tag and tha
 
 <!-- Manifest file doesn't exist -->
 <head>
-  <link rel="manifest" href="/nonexistent-manifest.json">
+  <link rel="manifest" href="/nonexistent-manifest.json" />
 </head>
 
 <!-- Invalid manifest link (missing rel or href) -->
 <head>
-  <link href="/manifest.json">
+  <link href="/manifest.json" />
 </head>
 ```
 
 ✅ **Good** - These are fine:
+
 ```html
 <!-- Proper manifest link with existing file -->
 <head>
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="/manifest.json" />
 </head>
 
 <!-- Alternative valid manifest link -->
 <head>
-  <link rel="manifest" href="/public/site.webmanifest">
+  <link rel="manifest" href="/public/site.webmanifest" />
 </head>
 ```
 
 ### Configuration
 
 The rule is configured in `eslint.config.js` as:
+
 ```javascript
 "custom/require-webmanifest": "error"
 ```
@@ -139,6 +150,7 @@ The rule is configured in `eslint.config.js` as:
 ### Purpose
 
 This rule helps ensure:
+
 - PWA compliance by requiring a web manifest
 - Proper manifest file structure and accessibility
 - Better user experience on mobile devices

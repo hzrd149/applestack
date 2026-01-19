@@ -7,8 +7,8 @@ Operations are composable functions that modify event templates. They can be cha
 ## Example Usage
 
 ```typescript
-import type { Operation } from 'applesauce-factory';
-import { addTag } from 'applesauce-factory/operations/tags';
+import type { Operation } from "applesauce-factory";
+import { addTag } from "applesauce-factory/operations/tags";
 
 /**
  * Add mention tags (p-tags) for multiple users
@@ -16,7 +16,7 @@ import { addTag } from 'applesauce-factory/operations/tags';
 export function addMentions(pubkeys: string[]): Operation {
   return async (ctx, draft) => {
     for (const pubkey of pubkeys) {
-      await addTag(['p', pubkey, '', 'mention'])(ctx, draft);
+      await addTag(["p", pubkey, "", "mention"])(ctx, draft);
     }
     return draft;
   };
@@ -27,7 +27,7 @@ export function addMentions(pubkeys: string[]): Operation {
  */
 export function addContentWarning(reason?: string): Operation {
   return async (ctx, draft) => {
-    const tag = reason ? ['content-warning', reason] : ['content-warning'];
+    const tag = reason ? ["content-warning", reason] : ["content-warning"];
     await addTag(tag)(ctx, draft);
     return draft;
   };
@@ -37,14 +37,14 @@ export function addContentWarning(reason?: string): Operation {
 ## Using Operations
 
 ```typescript
-import { factory } from '@/services/actions';
-import { NoteBlueprint } from 'applesauce-common/blueprints';
-import { addMentions, addContentWarning } from '@/operations/custom';
+import { factory } from "@/services/actions";
+import { NoteBlueprint } from "applesauce-common/blueprints";
+import { addMentions, addContentWarning } from "@/operations/custom";
 
 const event = await factory.create(
-  NoteBlueprint('Hello @alice and @bob!'),
+  NoteBlueprint("Hello @alice and @bob!"),
   addMentions([alicePubkey, bobPubkey]),
-  addContentWarning('NSFW')
+  addContentWarning("NSFW"),
 );
 ```
 

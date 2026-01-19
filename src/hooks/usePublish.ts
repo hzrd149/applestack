@@ -39,7 +39,10 @@ export function usePublish() {
       try {
         // Add client tag if on HTTPS
         const tags = [...(template.tags || [])];
-        if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
+        if (
+          location.protocol === "https:" &&
+          !tags.some(([name]) => name === "client")
+        ) {
           tags.push(["client", location.hostname]);
         }
 
@@ -59,7 +62,8 @@ export function usePublish() {
         console.log("Event published successfully:", signedEvent);
         return signedEvent;
       } catch (err) {
-        const error = err instanceof Error ? err : new Error("Failed to publish event");
+        const error =
+          err instanceof Error ? err : new Error("Failed to publish event");
         setError(error);
         console.error("Failed to publish event:", error);
         throw error;
@@ -67,7 +71,7 @@ export function usePublish() {
         setIsPending(false);
       }
     },
-    [activeAccount]
+    [activeAccount],
   );
 
   return {

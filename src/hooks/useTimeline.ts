@@ -38,7 +38,10 @@ import type { Filter } from "applesauce-core/helpers";
  * }
  * ```
  */
-export function useTimeline(relays: string[], filters: Filter[]): Note[] | undefined {
+export function useTimeline(
+  relays: string[],
+  filters: Filter[],
+): Note[] | undefined {
   const store = useEventStore();
 
   // Memoize the filters to prevent unnecessary re-subscriptions
@@ -52,9 +55,9 @@ export function useTimeline(relays: string[], filters: Filter[]): Note[] | undef
         mapEventsToStore(store), // Add events to store and deduplicate
         mapEventsToTimeline(), // Collect events into an array
         // @ts-expect-error - Cast type compatibility with EventStore
-        castTimelineStream(Note, store) // Cast to Note objects
+        castTimelineStream(Note, store), // Cast to Note objects
       ),
-    [relayKey, filterKey, store]
+    [relayKey, filterKey, store],
   );
 
   return notes ?? undefined;
@@ -93,9 +96,9 @@ export function useLocalTimeline(filters: Filter[]): Note[] | undefined {
     () =>
       store.timeline(filters).pipe(
         // @ts-expect-error - Cast type compatibility with EventStore
-        castTimelineStream(Note, store)
+        castTimelineStream(Note, store),
       ),
-    [filterKey, store]
+    [filterKey, store],
   );
 
   return notes ?? undefined;

@@ -1,20 +1,17 @@
-import { AccountManager, Accounts } from "applesauce-accounts";
+import { AccountManager } from "applesauce-accounts";
+import { registerCommonAccountTypes } from "applesauce-accounts/accounts";
 
 /**
  * Global AccountManager instance for multi-account support.
  * Handles adding, removing, and switching between Nostr accounts.
  */
-export const accountManager = new AccountManager();
+export const accounts = new AccountManager();
 
 // Register common account types (Extension, PrivateKey, NostrConnect, etc.)
-Accounts.registerCommonAccountTypes(accountManager);
+registerCommonAccountTypes(accounts);
 
-/**
- * Load saved accounts from localStorage on startup.
- * Note: Only account metadata is saved, not private keys.
- * Users must re-login with their signer on each session.
- */
-function loadSavedAccounts() {
+// Load accounts on initialization
+try {
   const savedAccounts = localStorage.getItem("accounts");
   if (savedAccounts) {
     try {
@@ -25,10 +22,28 @@ function loadSavedAccounts() {
       console.error("Failed to parse saved accounts", error);
     }
   }
+} catch (error) {
+  console.error("Failed to load accounts from localstorage");
+  console.error(error);
 }
 
-// AccountManager v5 doesn't have event listeners, save manually when needed
-// TODO: Implement proper persistence strategy
+try {
+  const lastActive = localStorage.getItem("active-account");
+  if (lastActive) {
+    const account = accounts.getAccount(lastActive);
+    if (account) accounts.setActive(account);
+  }
+} catch (error) {
+  console.error("Failed to restore last active account");
+  console.error(error);
+}
 
-// Load accounts on initialization
-loadSavedAccounts();
+// Persist accounts to localStorage
+accounts.accounts$.subscribe(() => {
+  localStorage.setItem("accounts", JSON.stringify(accounts.toJSON()));
+});
+
+// Persist active account to localStorage
+accounts.active$.subscribe((account) => {
+  localStorage.setItem("active-account", account?.id || "");
+});

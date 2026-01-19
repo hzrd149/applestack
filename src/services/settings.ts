@@ -23,7 +23,7 @@ export function persist<T>(
   options?: {
     serialize?: (value: T) => string;
     deserialize?: (value: string) => T;
-  }
+  },
 ): Subscription {
   const serialize = options?.serialize ?? JSON.stringify;
   const deserialize = options?.deserialize ?? JSON.parse;
@@ -55,10 +55,9 @@ export function persist<T>(
  * Default relay list for querying events.
  * Users can customize this in settings.
  */
-export const extraRelays = new BehaviorSubject<string[]>(relaySet([
-  "wss://relay.ditto.pub",
-  "wss://relay.damus.io",
-]));
+export const extraRelays = new BehaviorSubject<string[]>(
+  relaySet(["wss://relay.ditto.pub", "wss://relay.damus.io"]),
+);
 
 // Persist the extra relays to localStorage
 persist(extraRelays, "extraRelays");
@@ -67,11 +66,13 @@ persist(extraRelays, "extraRelays");
  * Lookup relays for finding user relay hints (NIP-65, profile relays, etc.)
  * These are used by the event loaders to find events more efficiently.
  */
-export const lookupRelays = new BehaviorSubject<string[]>(relaySet([
-  "wss://purplepag.es/",
-  "wss://index.hzrd149.com/",
-  "wss://indexer.coracle.social/"
-]));
+export const lookupRelays = new BehaviorSubject<string[]>(
+  relaySet([
+    "wss://purplepag.es/",
+    "wss://index.hzrd149.com/",
+    "wss://indexer.coracle.social/",
+  ]),
+);
 
 // Persist the lookup relays to localStorage
 persist(lookupRelays, "lookupRelays");

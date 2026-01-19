@@ -22,7 +22,7 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
-      "custom": customRules,
+      custom: customRules,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -33,23 +33,20 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
-          "argsIgnorePattern": "^_",
-          "varsIgnorePattern": "^_",
-          "ignoreRestSiblings": true,
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
         },
       ],
       "custom/no-placeholder-comments": "error",
-      "no-warning-comments": [
-        "error",
-        { terms: ["fixme"] },
-      ],
+      "no-warning-comments": ["error", { terms: ["fixme"] }],
     },
   },
   {
     files: ["**/*.html"],
     plugins: {
       "@html-eslint": htmlEslint,
-      "custom": customRules,
+      custom: customRules,
     },
     languageOptions: {
       parser: htmlParser,
@@ -61,14 +58,10 @@ export default tseslint.config(
       "@html-eslint/require-meta-viewport": "error",
       "@html-eslint/require-open-graph-protocol": [
         "error",
-        [
-          "og:type",
-          "og:title",
-          "og:description",
-        ],
+        ["og:type", "og:title", "og:description"],
       ],
       "custom/no-inline-script": "error",
       "custom/require-webmanifest": "error",
     },
-  }
+  },
 );

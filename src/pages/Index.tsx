@@ -1,9 +1,10 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from "@unhead/react";
 
 const Index = () => {
   useSeoMeta({
-    title: 'Welcome to Your Blank App',
-    description: 'A modern Nostr client application built with React, TailwindCSS, and Nostrify.',
+    title: "Welcome to Your Blank App",
+    description:
+      "A modern Nostr client application built with React, TailwindCSS, and Nostrify.",
   });
 
   return (

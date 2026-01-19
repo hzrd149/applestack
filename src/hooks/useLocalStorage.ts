@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 /**
  * Generic hook for managing localStorage state
@@ -9,7 +9,7 @@ export function useLocalStorage<T>(
   serializer?: {
     serialize: (value: T) => string;
     deserialize: (value: string) => T;
-  }
+  },
 ) {
   const serialize = serializer?.serialize || JSON.stringify;
   const deserialize = serializer?.deserialize || JSON.parse;
@@ -46,8 +46,8 @@ export function useLocalStorage<T>(
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [key, deserialize]);
 
   return [state, setValue] as const;

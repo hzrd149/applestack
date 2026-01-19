@@ -170,6 +170,7 @@ When implementing features that could use existing NIPs, follow this decision fr
 6. **Custom Kind Publishing**: When publishing events with custom generated kinds, always include a NIP-31 "alt" tag with a human-readable description of the event's purpose.
 
 **Example Decision Process**:
+
 ```
 Need: Equipment marketplace for farmers
 Options:
@@ -200,6 +201,7 @@ When designing tags for Nostr events, follow these principles:
    - Consider query patterns when designing tag structure
 
 4. **Tag Examples**:
+
    ```json
    // ❌ Wrong: Multi-letter tag, not queryable at relay level
    ["product_type", "electronics"]
@@ -211,13 +213,16 @@ When designing tags for Nostr events, follow these principles:
    ```
 
 5. **Querying Best Practices**:
+
    ```typescript
    // ❌ Inefficient: Get all events, filter in JavaScript
    const events = store.getEvents({ kinds: [30402] });
-   const filtered = events.filter(e => hasTag(e, 'product_type', 'electronics'));
+   const filtered = events.filter((e) =>
+     hasTag(e, "product_type", "electronics"),
+   );
 
    // ✅ Efficient: Filter at relay level
-   pool.req(relays, [{ kinds: [30402], '#t': ['electronics'] }]);
+   pool.req(relays, [{ kinds: [30402], "#t": ["electronics"] }]);
    ```
 
 #### `t` Tag Filtering for Community-Specific Content
@@ -225,23 +230,25 @@ When designing tags for Nostr events, follow these principles:
 For applications focused on a specific community or niche, you can use `t` tags to filter events for the target audience.
 
 **When to Use:**
+
 - ✅ Community apps: "farmers" → `t: "farming"`, "Poland" → `t: "poland"`
 - ❌ Generic platforms: Twitter clones, general Nostr clients
 
 **Implementation:**
+
 ```typescript
 // Publishing with community tag
 const { publishEvent } = usePublish();
 await publishEvent({
   kind: 1,
   content: data.content,
-  tags: [['t', 'farming']]
+  tags: [["t", "farming"]],
 });
 
 // Querying community content
 const notes = useTimeline(
-  ['wss://relay.damus.io'],
-  [{ kinds: [1], '#t': ['farming'], limit: 20 }]
+  ["wss://relay.damus.io"],
+  [{ kinds: [1], "#t": ["farming"], limit: 20 }],
 );
 ```
 
@@ -269,15 +276,22 @@ When designing new event kinds, the `content` field should be used for semantica
 #### Example
 
 **✅ Good - queryable data in tags:**
+
 ```json
 {
   "kind": 30402,
   "content": "",
-  "tags": [["d", "product-123"], ["title", "Camera"], ["price", "250"], ["t", "photography"]]
+  "tags": [
+    ["d", "product-123"],
+    ["title", "Camera"],
+    ["price", "250"],
+    ["t", "photography"]
+  ]
 }
 ```
 
 **❌ Bad - structured data in content:**
+
 ```json
 {
   "kind": 30402,
@@ -301,19 +315,23 @@ Applesauce provides several React hooks for building Nostr applications. All hoo
 The `use$` hook subscribes to RxJS observables and returns the current value. It automatically unsubscribes when the component unmounts.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { ProfileModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { ProfileModel } from "applesauce-core/models";
 
 function UserProfile({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
-  const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey, store]);
+  const profile = use$(
+    () => store.model(ProfileModel, pubkey),
+    [pubkey, store],
+  );
 
-  return <div>{profile?.name ?? 'Anonymous'}</div>;
+  return <div>{profile?.name ?? "Anonymous"}</div>;
 }
 ```
 
 **Key Features:**
+
 - Automatically handles subscription lifecycle
 - Re-subscribes when dependencies change
 - Returns `undefined` while loading
@@ -324,7 +342,7 @@ function UserProfile({ pubkey }: { pubkey: string }) {
 The `useEventStore` hook returns the global EventStore instance from context.
 
 ```tsx
-import { useEventStore } from '@/hooks/useEventStore';
+import { useEventStore } from "@/hooks/useEventStore";
 
 function MyComponent() {
   const store = useEventStore();
@@ -340,6 +358,7 @@ function MyComponent() {
 ```
 
 **EventStore Methods:**
+
 - `add(event)`: Add event to store
 - `getEvents(filter)`: Query events by filter
 - `getEvent(id)`: Get single event by ID
@@ -353,7 +372,7 @@ function MyComponent() {
 The `useAccount` hook returns the currently logged-in account or `null`.
 
 ```tsx
-import { useAccount } from '@/hooks/useAccount';
+import { useAccount } from "@/hooks/useAccount";
 
 function MyComponent() {
   const account = useAccount();
@@ -374,10 +393,12 @@ function MyComponent() {
 ```
 
 **Account Properties:**
+
 - `pubkey`: User's public key (hex)
 - `signer`: NIP-07 compatible signer for signing/encrypting
 
 **Related Hook:**
+
 - `useIsLoggedIn()`: Returns boolean instead of account object
 
 #### `useUser` - Get User Cast (Recommended)
@@ -385,8 +406,8 @@ function MyComponent() {
 The `useUser` hook creates a User cast that provides reactive access to profile, contacts, and mailboxes.
 
 ```tsx
-import { useUser } from '@/hooks/useUser';
-import { use$ } from '@/hooks/use$';
+import { useUser } from "@/hooks/useUser";
+import { use$ } from "@/hooks/use$";
 
 function UserCard({ pubkey }: { pubkey: string }) {
   const user = useUser(pubkey);
@@ -397,7 +418,7 @@ function UserCard({ pubkey }: { pubkey: string }) {
   return (
     <div>
       <img src={profile?.picture} alt={profile?.name} />
-      <h3>{profile?.displayName ?? profile?.name ?? 'Anonymous'}</h3>
+      <h3>{profile?.displayName ?? profile?.name ?? "Anonymous"}</h3>
       <p>{profile?.about}</p>
       <p>Following {contacts?.length ?? 0} users</p>
       <p>Publishing to {outboxes?.length ?? 0} relays</p>
@@ -407,6 +428,7 @@ function UserCard({ pubkey }: { pubkey: string }) {
 ```
 
 **User Cast Properties:**
+
 - `profile$`: Observable<Profile> - User metadata (kind 0)
 - `contacts$`: Observable<User[]> - Followed users (kind 3)
 - `followers$`: Observable<User[]> - Users following this user
@@ -415,6 +437,7 @@ function UserCard({ pubkey }: { pubkey: string }) {
 - `mutes$`: Observable<User[]> - Muted users
 
 **Profile Fields (from Profile observable):**
+
 - `name`: Display name
 - `displayName`: Alternative display name
 - `picture`: Avatar URL
@@ -425,6 +448,7 @@ function UserCard({ pubkey }: { pubkey: string }) {
 - `website`: Personal website
 
 **Related Hooks:**
+
 - `useMyUser()`: Get current user's own User cast
 - `useProfile(pubkey)`: Shortcut to get just the profile (uses User cast internally)
 - `useMyProfile()`: Get current user's own profile
@@ -434,19 +458,19 @@ function UserCard({ pubkey }: { pubkey: string }) {
 The `useTimeline` hook subscribes to a live timeline of events from relays. Events are automatically cast to Note objects with reactive properties.
 
 ```tsx
-import { useTimeline } from '@/hooks/useTimeline';
+import { useTimeline } from "@/hooks/useTimeline";
 
 function Timeline() {
   const notes = useTimeline(
-    ['wss://relay.damus.io'],
-    [{ kinds: [1], limit: 20 }]
+    ["wss://relay.damus.io"],
+    [{ kinds: [1], limit: 20 }],
   );
 
   if (!notes) return <Loading />;
 
   return (
     <div>
-      {notes.map(note => (
+      {notes.map((note) => (
         <NoteCard key={note.id} note={note} />
       ))}
     </div>
@@ -455,12 +479,14 @@ function Timeline() {
 ```
 
 **How it works:**
+
 1. Queries relays with filters
 2. Adds events to EventStore
 3. Casts events to Note objects
 4. Updates automatically when events change
 
 **Related Hook:**
+
 - `useLocalTimeline(filters)`: Query only from EventStore (no relays)
 
 #### `usePublish` - Publish Events
@@ -468,7 +494,7 @@ function Timeline() {
 The `usePublish` hook provides a function to publish Nostr events. It automatically adds a "client" tag and handles signing.
 
 ```tsx
-import { usePublish } from '@/hooks/usePublish';
+import { usePublish } from "@/hooks/usePublish";
 
 function PostForm() {
   const { publishEvent, isPending } = usePublish();
@@ -476,16 +502,21 @@ function PostForm() {
   const handleSubmit = async () => {
     await publishEvent({
       kind: 1,
-      content: 'Hello Nostr!',
-      tags: []
+      content: "Hello Nostr!",
+      tags: [],
     });
   };
 
-  return <button onClick={handleSubmit} disabled={isPending}>Post</button>;
+  return (
+    <button onClick={handleSubmit} disabled={isPending}>
+      Post
+    </button>
+  );
 }
 ```
 
 **Features:**
+
 - Automatically signs with user's signer
 - Adds "client" tag (hostname on HTTPS)
 - Publishes to configured relays
@@ -493,6 +524,7 @@ function PostForm() {
 - Returns published event
 
 **Backward Compatibility:**
+
 - `useNostrPublish()` is an alias for `usePublish()`
 
 #### `useAction` - Execute Pre-built Actions
@@ -500,21 +532,21 @@ function PostForm() {
 The `useAction` hook executes pre-built Nostr actions from the Actions library.
 
 ```tsx
-import { useAction } from '@/hooks/useAction';
-import { CreateNote, FollowUser } from 'applesauce-actions/actions';
+import { useAction } from "@/hooks/useAction";
+import { CreateNote, FollowUser } from "applesauce-actions/actions";
 
 function PostForm() {
   const createNote = useAction(CreateNote);
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState("");
 
   const handleSubmit = async () => {
     await createNote(content);
-    setContent('');
+    setContent("");
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <textarea value={content} onChange={e => setContent(e.target.value)} />
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} />
       <button type="submit">Post</button>
     </form>
   );
@@ -527,6 +559,7 @@ function FollowButton({ pubkey }: { pubkey: string }) {
 ```
 
 **Available Actions:**
+
 - `CreateNote`: Publish text note (kind 1)
 - `DeleteEvent`: Delete an event (kind 5)
 - `UpdateProfile`: Update profile metadata (kind 0)
@@ -545,17 +578,17 @@ There are three main patterns for querying events:
 Best for feeds and timelines. Automatically handles subscriptions and casts to Note objects.
 
 ```tsx
-import { useTimeline } from '@/hooks/useTimeline';
+import { useTimeline } from "@/hooks/useTimeline";
 
 function Feed() {
   const notes = useTimeline(
-    ['wss://relay.damus.io'],
-    [{ kinds: [1], limit: 50 }]
+    ["wss://relay.damus.io"],
+    [{ kinds: [1], limit: 50 }],
   );
 
   if (!notes) return <Skeleton />;
 
-  return notes.map(note => <NoteCard key={note.id} note={note} />);
+  return notes.map((note) => <NoteCard key={note.id} note={note} />);
 }
 ```
 
@@ -564,25 +597,31 @@ function Feed() {
 For custom queries with more control. Use with `use$` for reactivity.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { pool } from '@/services/pool';
-import { onlyEvents, mapEventsToStore, mapEventsToTimeline } from 'applesauce-relay';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { pool } from "@/services/pool";
+import {
+  onlyEvents,
+  mapEventsToStore,
+  mapEventsToTimeline,
+} from "applesauce-relay";
 
 function CustomFeed() {
   const store = useEventStore();
 
   const events = use$(
     () =>
-      pool.req(['wss://relay.damus.io'], [{ kinds: [1], authors: [pubkey] }]).pipe(
-        onlyEvents(), // Filter out EOSE messages
-        mapEventsToStore(store), // Add to store
-        mapEventsToTimeline() // Collect into array
-      ),
-    [pubkey, store]
+      pool
+        .req(["wss://relay.damus.io"], [{ kinds: [1], authors: [pubkey] }])
+        .pipe(
+          onlyEvents(), // Filter out EOSE messages
+          mapEventsToStore(store), // Add to store
+          mapEventsToTimeline(), // Collect into array
+        ),
+    [pubkey, store],
   );
 
-  return events?.map(e => <div key={e.id}>{e.content}</div>);
+  return events?.map((e) => <div key={e.id}>{e.content}</div>);
 }
 ```
 
@@ -591,13 +630,13 @@ function CustomFeed() {
 For querying events already in the store (no relay queries).
 
 ```tsx
-import { useEventStore } from '@/hooks/useEventStore';
+import { useEventStore } from "@/hooks/useEventStore";
 
 function LocalEvents() {
   const store = useEventStore();
   const events = store.getEvents({ kinds: [1], limit: 20 });
 
-  return events.map(e => <div key={e.id}>{e.content}</div>);
+  return events.map((e) => <div key={e.id}>{e.content}</div>);
 }
 ```
 
@@ -610,7 +649,7 @@ There are three patterns for publishing events:
 Best for simple event publishing.
 
 ```tsx
-import { usePublish } from '@/hooks/usePublish';
+import { usePublish } from "@/hooks/usePublish";
 
 function CreatePost() {
   const { publishEvent, isPending } = usePublish();
@@ -619,11 +658,15 @@ function CreatePost() {
     await publishEvent({
       kind: 1,
       content,
-      tags: []
+      tags: [],
     });
   };
 
-  return <button onClick={() => handleSubmit('Hello!')} disabled={isPending}>Post</button>;
+  return (
+    <button onClick={() => handleSubmit("Hello!")} disabled={isPending}>
+      Post
+    </button>
+  );
 }
 ```
 
@@ -632,8 +675,8 @@ function CreatePost() {
 Best for pre-built operations like following users, updating profile, etc.
 
 ```tsx
-import { useAction } from '@/hooks/useAction';
-import { UpdateProfile } from 'applesauce-actions/actions';
+import { useAction } from "@/hooks/useAction";
+import { UpdateProfile } from "applesauce-actions/actions";
 
 function EditProfile() {
   const updateProfile = useAction(UpdateProfile);
@@ -642,7 +685,11 @@ function EditProfile() {
     await updateProfile(profile);
   };
 
-  return <button onClick={() => handleSave({ name: 'Alice', about: 'Developer' })}>Save</button>;
+  return (
+    <button onClick={() => handleSave({ name: "Alice", about: "Developer" })}>
+      Save
+    </button>
+  );
 }
 ```
 
@@ -651,8 +698,8 @@ function EditProfile() {
 For maximum control or custom publishing logic.
 
 ```tsx
-import { publish } from '@/services/pool';
-import { useAccount } from '@/hooks/useAccount';
+import { publish } from "@/services/pool";
+import { useAccount } from "@/hooks/useAccount";
 
 function CustomPublish() {
   const account = useAccount();
@@ -660,9 +707,9 @@ function CustomPublish() {
   const handlePublish = async () => {
     const template = {
       kind: 1,
-      content: 'Hello Nostr!',
+      content: "Hello Nostr!",
       tags: [],
-      created_at: Math.floor(Date.now() / 1000)
+      created_at: Math.floor(Date.now() / 1000),
     };
 
     const signedEvent = await account!.signer.signEvent(template);
@@ -682,8 +729,8 @@ Applesauce's cast system wraps raw Nostr events in type-safe classes with comput
 The `Note` cast represents kind 1 text notes with helpful properties and methods.
 
 ```tsx
-import { Note } from 'applesauce-common/casts';
-import { use$ } from '@/hooks/use$';
+import { Note } from "applesauce-common/casts";
+import { use$ } from "@/hooks/use$";
 
 function NoteCard({ note }: { note: Note }) {
   // Reactive properties - update automatically
@@ -694,7 +741,7 @@ function NoteCard({ note }: { note: Note }) {
 
   return (
     <div>
-      <div>{author?.name ?? 'Anonymous'}</div>
+      <div>{author?.name ?? "Anonymous"}</div>
       <p>{note.content}</p>
       <div>Replies: {replyCount ?? 0}</div>
     </div>
@@ -703,6 +750,7 @@ function NoteCard({ note }: { note: Note }) {
 ```
 
 **Note Properties:**
+
 - `id`: Event ID
 - `content`: Note content
 - `author`: Observable<User> - Author profile
@@ -717,8 +765,8 @@ function NoteCard({ note }: { note: Note }) {
 The `User` cast represents user profiles with metadata.
 
 ```tsx
-import { User } from 'applesauce-common/casts';
-import { use$ } from '@/hooks/use$';
+import { User } from "applesauce-common/casts";
+import { use$ } from "@/hooks/use$";
 
 function UserCard({ user }: { user: User }) {
   const profile = use$(() => user.profile); // ProfileContent
@@ -734,6 +782,7 @@ function UserCard({ user }: { user: User }) {
 ```
 
 **User Properties:**
+
 - `pubkey`: Public key
 - `profile`: Observable<ProfileContent> - Kind 0 metadata
 - `follows`: Observable<string[]> - Followed pubkeys
@@ -744,13 +793,13 @@ function UserCard({ user }: { user: User }) {
 The `Reaction` cast represents kind 7 reactions.
 
 ```tsx
-import { Reaction } from 'applesauce-common/casts';
-import { use$ } from '@/hooks/use$';
+import { Reaction } from "applesauce-common/casts";
+import { use$ } from "@/hooks/use$";
 
 function ReactionsList({ reactions }: { reactions: Reaction[] }) {
   return (
     <div>
-      {reactions.map(reaction => {
+      {reactions.map((reaction) => {
         const author = use$(() => reaction.author);
         return (
           <span key={reaction.id}>
@@ -764,6 +813,7 @@ function ReactionsList({ reactions }: { reactions: Reaction[] }) {
 ```
 
 **Reaction Properties:**
+
 - `emoji`: Reaction emoji (e.g., "❤️", "+", "-")
 - `target`: Observable<Note> - Target event
 - `author`: Observable<User> - Author of reaction
@@ -773,13 +823,13 @@ function ReactionsList({ reactions }: { reactions: Reaction[] }) {
 The `Zap` cast represents NIP-57 lightning payments.
 
 ```tsx
-import { Zap } from 'applesauce-common/casts';
-import { use$ } from '@/hooks/use$';
+import { Zap } from "applesauce-common/casts";
+import { use$ } from "@/hooks/use$";
 
 function ZapsList({ zaps }: { zaps: Zap[] }) {
   return (
     <div>
-      {zaps.map(zap => {
+      {zaps.map((zap) => {
         const sender = use$(() => zap.sender);
         return (
           <div key={zap.id}>
@@ -794,6 +844,7 @@ function ZapsList({ zaps }: { zaps: Zap[] }) {
 ```
 
 **Zap Properties:**
+
 - `amount`: Amount in sats
 - `comment`: Optional zap comment
 - `sender`: Observable<User> - Sender
@@ -808,13 +859,16 @@ Applesauce Models are reactive data structures that automatically update when ev
 Fetches and tracks user profile metadata.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { ProfileModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { ProfileModel } from "applesauce-core/models";
 
 function UserProfile({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
-  const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey, store]);
+  const profile = use$(
+    () => store.model(ProfileModel, pubkey),
+    [pubkey, store],
+  );
 
   return (
     <div>
@@ -831,9 +885,9 @@ function UserProfile({ pubkey }: { pubkey: string }) {
 Manages threaded conversations with replies.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { ThreadModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { ThreadModel } from "applesauce-core/models";
 
 function ThreadView({ rootId }: { rootId: string }) {
   const store = useEventStore();
@@ -842,7 +896,7 @@ function ThreadView({ rootId }: { rootId: string }) {
   return (
     <div>
       <h3>Thread with {thread?.replies.length} replies</h3>
-      {thread?.replies.map(reply => (
+      {thread?.replies.map((reply) => (
         <div key={reply.id}>{reply.content}</div>
       ))}
     </div>
@@ -855,18 +909,21 @@ function ThreadView({ rootId }: { rootId: string }) {
 Tracks comments/replies for an event.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { CommentsModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { CommentsModel } from "applesauce-core/models";
 
 function CommentsList({ eventId }: { eventId: string }) {
   const store = useEventStore();
-  const comments = use$(() => store.model(CommentsModel, eventId), [eventId, store]);
+  const comments = use$(
+    () => store.model(CommentsModel, eventId),
+    [eventId, store],
+  );
 
   return (
     <div>
       <h4>{comments?.count} comments</h4>
-      {comments?.comments.map(comment => (
+      {comments?.comments.map((comment) => (
         <div key={comment.id}>{comment.content}</div>
       ))}
     </div>
@@ -879,15 +936,19 @@ function CommentsList({ eventId }: { eventId: string }) {
 Tracks zaps for an event.
 
 ```tsx
-import { use$ } from '@/hooks/use$';
-import { useEventStore } from '@/hooks/useEventStore';
-import { ZapsModel } from 'applesauce-core/models';
+import { use$ } from "@/hooks/use$";
+import { useEventStore } from "@/hooks/useEventStore";
+import { ZapsModel } from "applesauce-core/models";
 
 function ZapsDisplay({ eventId }: { eventId: string }) {
   const store = useEventStore();
-  const zapsModel = use$(() => store.model(ZapsModel, eventId), [eventId, store]);
+  const zapsModel = use$(
+    () => store.model(ZapsModel, eventId),
+    [eventId, store],
+  );
 
-  const totalAmount = zapsModel?.zaps.reduce((sum, zap) => sum + zap.amount, 0) ?? 0;
+  const totalAmount =
+    zapsModel?.zaps.reduce((sum, zap) => sum + zap.amount, 0) ?? 0;
 
   return (
     <div>
@@ -902,21 +963,23 @@ function ZapsDisplay({ eventId }: { eventId: string }) {
 Applesauce provides loaders for implementing infinite scroll and pagination. See **`docs/NOSTR_INFINITE_SCROLL.md`** for complete implementation guide.
 
 **Key Concepts:**
+
 - **createTimelineLoader**: For paginated feeds/timelines
 - **createEventLoader**: Automatically loads missing events
 - **addressLoader**: For addressable events (kind 30000-39999)
 - **reactionsLoader**: For loading reactions
 
 **Example:**
+
 ```tsx
-import { createTimelineLoader } from 'applesauce-loaders/loaders';
-import { pool } from '@/services/pool';
-import { eventStore } from '@/services/stores';
+import { createTimelineLoader } from "applesauce-loaders/loaders";
+import { pool } from "@/services/pool";
+import { eventStore } from "@/services/stores";
 
 const loader = createTimelineLoader(pool, {
   eventStore,
-  relays: ['wss://relay.damus.io'],
-  filters: [{ kinds: [1], limit: 20 }]
+  relays: ["wss://relay.damus.io"],
+  filters: [{ kinds: [1], limit: 20 }],
 });
 
 // Load more events
@@ -930,7 +993,7 @@ await loader.loadMore();
 The `LoginArea` component provides complete login/signup UI.
 
 ```tsx
-import { LoginArea } from '@/components/auth/LoginArea';
+import { LoginArea } from "@/components/auth/LoginArea";
 
 function Header() {
   return (
@@ -943,6 +1006,7 @@ function Header() {
 ```
 
 **Features:**
+
 - Shows "Log in" and "Sign up" buttons when logged out
 - Shows account switcher when logged in
 - Handles multiple accounts
@@ -953,7 +1017,7 @@ function Header() {
 For custom login flows, use `useLoginActions` to access login methods.
 
 ```tsx
-import { useLoginActions } from '@/hooks/useLoginActions';
+import { useLoginActions } from "@/hooks/useLoginActions";
 
 function CustomLogin() {
   const { extension, nsec, bunker, logout } = useLoginActions();
@@ -961,9 +1025,9 @@ function CustomLogin() {
   const handleExtensionLogin = async () => {
     try {
       await extension();
-      console.log('Logged in with extension');
+      console.log("Logged in with extension");
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
     }
   };
 
@@ -972,6 +1036,7 @@ function CustomLogin() {
 ```
 
 **Available Methods:**
+
 - `extension()`: Login with NIP-07 browser extension
 - `nsec(nsecString)`: Login with secret key
 - `bunker(bunkerUri)`: Login with NIP-46 remote signer
@@ -982,7 +1047,7 @@ function CustomLogin() {
 Accounts are managed by the global `accountManager` in `/src/services/accounts.ts`.
 
 ```tsx
-import { accountManager } from '@/services/accounts';
+import { accountManager } from "@/services/accounts";
 
 // Get active account
 const active = accountManager.getActive();
@@ -998,11 +1063,10 @@ accountManager.removeAccount(pubkey);
 ```
 
 **Account Types:**
+
 - `ExtensionAccount`: NIP-07 browser extension
 - `PrivateKeyAccount`: Local private key (nsec)
 - `NostrConnectAccount`: NIP-46 remote signer (bunker)
-
-
 
 ### NIP-19 Identifiers
 
@@ -1019,12 +1083,14 @@ Nostr defines a set of bech32-encoded identifiers in NIP-19. Their prefixes and 
 #### Key Differences
 
 **`note1` vs `nevent1`:**
+
 - `note1`: Contains only the event ID (32 bytes) - specifically for kind:1 events
 - `nevent1`: Contains event ID plus optional relay hints and author pubkey - for any event kind
 - Use `note1` for simple references to text notes
 - Use `nevent1` when you need relay hints or author context
 
 **`npub1` vs `nprofile1`:**
+
 - `npub1`: Contains only the public key (32 bytes)
 - `nprofile1`: Contains public key plus optional relay hints and petname
 - Use `npub1` for simple user references
@@ -1037,6 +1103,7 @@ Nostr defines a set of bech32-encoded identifiers in NIP-19. Their prefixes and 
 This project includes a boilerplate `NIP19Page` component that handles all NIP-19 identifier types at the root level.
 
 **Example URLs:**
+
 - `/npub1abc123...` - User profile
 - `/note1def456...` - Kind:1 text note
 - `/nevent1ghi789...` - Any event with relay hints
@@ -1047,19 +1114,19 @@ This project includes a boilerplate `NIP19Page` component that handles all NIP-1
 Always decode NIP-19 identifiers before using them in queries:
 
 ```tsx
-import { nip19 } from 'nostr-tools';
+import { nip19 } from "nostr-tools";
 
 // Decode identifier
 const decoded = nip19.decode(value);
 
-if (decoded.type === 'naddr') {
+if (decoded.type === "naddr") {
   const naddr = decoded.data;
 
   // Query with proper filter
   const events = store.getEvents({
     kinds: [naddr.kind],
     authors: [naddr.pubkey],
-    '#d': [naddr.identifier]
+    "#d": [naddr.identifier],
   });
 }
 ```
@@ -1072,9 +1139,9 @@ When querying events with required tags or content fields, filter through a vali
 function validateCalendarEvent(event: NostrEvent): boolean {
   if (![31922, 31923].includes(event.kind)) return false;
 
-  const d = event.tags.find(([name]) => name === 'd')?.[1];
-  const title = event.tags.find(([name]) => name === 'title')?.[1];
-  const start = event.tags.find(([name]) => name === 'start')?.[1];
+  const d = event.tags.find(([name]) => name === "d")?.[1];
+  const title = event.tags.find(([name]) => name === "title")?.[1];
+  const start = event.tags.find(([name]) => name === "start")?.[1];
 
   if (!d || !title || !start) return false;
 
@@ -1096,26 +1163,32 @@ const validNotes = notes?.filter(validateCalendarEvent);
 Use the account signer for NIP-44 encryption:
 
 ```tsx
-import { useAccount } from '@/hooks/useAccount';
+import { useAccount } from "@/hooks/useAccount";
 
 function EncryptedMessage() {
   const account = useAccount();
 
   const handleEncrypt = async (message: string, recipientPubkey: string) => {
     if (!account?.signer.nip44) {
-      throw new Error('NIP-44 not supported by signer');
+      throw new Error("NIP-44 not supported by signer");
     }
 
-    const encrypted = await account.signer.nip44.encrypt(recipientPubkey, message);
+    const encrypted = await account.signer.nip44.encrypt(
+      recipientPubkey,
+      message,
+    );
     return encrypted;
   };
 
   const handleDecrypt = async (encrypted: string, senderPubkey: string) => {
     if (!account?.signer.nip44) {
-      throw new Error('NIP-44 not supported by signer');
+      throw new Error("NIP-44 not supported by signer");
     }
 
-    const decrypted = await account.signer.nip44.decrypt(senderPubkey, encrypted);
+    const decrypted = await account.signer.nip44.decrypt(
+      senderPubkey,
+      encrypted,
+    );
     return decrypted;
   };
 
@@ -1177,7 +1250,7 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 When no content is found (empty search results, no data available, etc.), display a minimalist empty state with helpful messaging. The application uses NIP-65 relay management, so users can manage their relays through the settings or relay management interface.
 
 ```tsx
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from "@/components/ui/card";
 
 // Empty state example
 <div className="col-span-full">
@@ -1185,12 +1258,13 @@ import { Card, CardContent } from '@/components/ui/card';
     <CardContent className="py-12 px-8 text-center">
       <div className="max-w-sm mx-auto space-y-6">
         <p className="text-muted-foreground">
-          No results found. Try checking your relay connections or wait a moment for content to load.
+          No results found. Try checking your relay connections or wait a moment
+          for content to load.
         </p>
       </div>
     </CardContent>
   </Card>
-</div>
+</div>;
 ```
 
 ## CRITICAL Design Standards
@@ -1257,8 +1331,9 @@ To add custom fonts, follow these steps:
    **Format**: `@fontsource/[font-name]` or `@fontsource-variable/[font-name]` (for variable fonts)
 
 2. **Import the font** in `src/main.tsx`:
+
    ```typescript
-   import '@fontsource-variable/<font-name>';
+   import "@fontsource-variable/<font-name>";
    ```
 
 3. **Update Tailwind configuration** in `tailwind.config.ts`:
@@ -1267,11 +1342,11 @@ To add custom fonts, follow these steps:
      theme: {
        extend: {
          fontFamily: {
-           sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
+           sans: ["Inter Variable", "Inter", "system-ui", "sans-serif"],
          },
        },
      },
-   }
+   };
    ```
 
 ### Recommended Font Choices by Use Case
@@ -1292,6 +1367,7 @@ The project includes a complete light/dark theme system using CSS custom propert
 ### Color Scheme Implementation
 
 When users specify color schemes:
+
 - Update CSS custom properties in `src/index.css` (both `:root` and `.dark` selectors)
 - Use Tailwind's color palette or define custom colors
 - Ensure proper contrast ratios for accessibility
@@ -1319,6 +1395,7 @@ There is an important distinction between **writing new tests** and **running ex
 3. **The user says they are still experiencing a problem** that you have already attempted to solve (tests can help verify the fix)
 
 **Never write tests because:**
+
 - Tool results show test failures (these are not user requests)
 - You think tests would be helpful
 - New features or components are created
@@ -1344,20 +1421,20 @@ The project uses Vitest with jsdom environment and includes comprehensive test s
 The project includes a `TestApp` component that provides all necessary context providers for testing. Wrap components with this component to provide required context providers:
 
 ```tsx
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { TestApp } from '@/test/TestApp';
-import { MyComponent } from './MyComponent';
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { TestApp } from "@/test/TestApp";
+import { MyComponent } from "./MyComponent";
 
-describe('MyComponent', () => {
-  it('renders correctly', () => {
+describe("MyComponent", () => {
+  it("renders correctly", () => {
     render(
       <TestApp>
         <MyComponent />
-      </TestApp>
+      </TestApp>,
     );
 
-    expect(screen.getByText('Expected text')).toBeInTheDocument();
+    expect(screen.getByText("Expected text")).toBeInTheDocument();
   });
 });
 ```
@@ -1379,6 +1456,7 @@ Run available tools in this priority order:
 5. **Git Commit** (Required): Create a commit with your changes when finished
 
 **Minimum Requirements:**
+
 - Code must type-check without errors
 - Code must build/compile successfully
 - Fix any critical linting errors that would break functionality

@@ -1,14 +1,14 @@
 import { ActionRunner, Actions } from "applesauce-actions";
 import { EventFactory } from "applesauce-core";
 import { eventStore, publish } from "./nostr";
-import { accountManager } from "./accounts";
+import { accounts } from "./accounts";
 
 /**
  * Get the current active account's signer.
  * Throws if no account is logged in.
  */
 function getActiveSigner() {
-  const account = accountManager.getActive();
+  const account = accounts.getActive();
   if (!account) {
     throw new Error("No account is currently logged in");
   }

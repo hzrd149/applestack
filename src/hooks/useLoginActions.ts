@@ -1,7 +1,11 @@
 import { toast } from "@/hooks/useToast";
-import { accountManager } from "@/services/accounts";
+import { accounts } from "@/services/accounts";
 import { Accounts } from "applesauce-accounts";
-import { ExtensionSigner, NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
+import {
+  ExtensionSigner,
+  NostrConnectSigner,
+  PrivateKeySigner,
+} from "applesauce-signers";
 import { nip19 } from "nostr-tools";
 
 // NOTE: This file should not be edited except for adding new login methods.
@@ -31,9 +35,9 @@ export function useLoginActions() {
         const account = new Accounts.PrivateKeyAccount(pubkey, signer);
 
         // Add to account manager
-        accountManager.addAccount(account);
+        accounts.addAccount(account);
 
-        accountManager.setActive(account.pubkey);
+        accounts.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with nsec:", error);
         throw new Error("Invalid secret key");
@@ -54,11 +58,11 @@ export function useLoginActions() {
         const pubkey = await signer.getPublicKey();
 
         // Check if this account is already logged in
-        const existing = accountManager.getAccountForPubkey(pubkey);
+        const existing = accounts.getAccountForPubkey(pubkey);
 
         if (existing) {
           // Just switch to the existing account
-          accountManager.setActive(existing.pubkey);
+          accounts.setActive(existing.pubkey);
           toast({
             title: "Already logged in",
             description: "Switched to existing account",
@@ -70,9 +74,9 @@ export function useLoginActions() {
         const account = new Accounts.NostrConnectAccount(pubkey, signer);
 
         // Add to account manager
-        accountManager.addAccount(account);
+        accounts.addAccount(account);
 
-        accountManager.setActive(account.pubkey);
+        accounts.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with bunker:", error);
         throw new Error("Failed to connect to remote signer");
@@ -85,19 +89,21 @@ export function useLoginActions() {
      */
     async extension(): Promise<void> {
       try {
-        if (!('nostr' in window)) {
-          throw new Error("Nostr extension not found. Please install a NIP-07 extension.");
+        if (!("nostr" in window)) {
+          throw new Error(
+            "Nostr extension not found. Please install a NIP-07 extension.",
+          );
         }
 
         // Get pubkey from extension first
         const pubkey = await window.nostr!.getPublicKey();
 
         // Check if this account is already logged in
-        const existing = accountManager.getAccountForPubkey(pubkey);
+        const existing = accounts.getAccountForPubkey(pubkey);
 
         if (existing) {
           // Just switch to the existing account
-          accountManager.setActive(existing.pubkey);
+          accounts.setActive(existing.pubkey);
           toast({
             title: "Already logged in",
             description: "Switched to existing account",
@@ -110,9 +116,9 @@ export function useLoginActions() {
         const account = new Accounts.ExtensionAccount(pubkey, signer);
 
         // Add to account manager
-        accountManager.addAccount(account);
+        accounts.addAccount(account);
 
-        accountManager.setActive(account.pubkey);
+        accounts.setActive(account.pubkey);
       } catch (error) {
         console.error("Failed to login with extension:", error);
         throw error;
@@ -124,9 +130,9 @@ export function useLoginActions() {
      * Removes the active account from the account manager.
      */
     logout(): void {
-      const activeAccount = accountManager.getActive();
+      const activeAccount = accounts.getActive();
       if (activeAccount) {
-        accountManager.removeAccount(activeAccount.pubkey);
+        accounts.removeAccount(activeAccount.pubkey);
       }
     },
   };

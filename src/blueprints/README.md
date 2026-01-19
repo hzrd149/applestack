@@ -7,18 +7,18 @@ Blueprints are templates for creating properly formatted Nostr events. They use 
 ## Example Usage
 
 ```typescript
-import { blueprint, EventBlueprint } from 'applesauce-factory';
-import { setContent } from 'applesauce-factory/operations/content';
-import { addTag } from 'applesauce-factory/operations/tags';
+import { blueprint, EventBlueprint } from "applesauce-factory";
+import { setContent } from "applesauce-factory/operations/content";
+import { addTag } from "applesauce-factory/operations/tags";
 
 export function MyCustomBlueprint(
   title: string,
-  content: string
+  content: string,
 ): EventBlueprint {
   return blueprint(
     30023, // Event kind
-    addTag(['d', title.toLowerCase().replace(/\s+/g, '-')]),
-    addTag(['title', title]),
+    addTag(["d", title.toLowerCase().replace(/\s+/g, "-")]),
+    addTag(["title", title]),
     setContent(content),
   );
 }
@@ -27,12 +27,10 @@ export function MyCustomBlueprint(
 ## Creating Events with Blueprints
 
 ```typescript
-import { factory } from '@/services/actions';
-import { MyCustomBlueprint } from '@/blueprints/custom';
+import { factory } from "@/services/actions";
+import { MyCustomBlueprint } from "@/blueprints/custom";
 
-const event = await factory.create(
-  MyCustomBlueprint('My Title', 'My content')
-);
+const event = await factory.create(MyCustomBlueprint("My Title", "My content"));
 ```
 
 ## Available Built-in Blueprints

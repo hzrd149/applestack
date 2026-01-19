@@ -1,7 +1,7 @@
 /**
  * NIP-07 window.nostr interface
  */
-import type { EventTemplate, NostrEvent } from 'nostr-tools';
+import type { EventTemplate, NostrEvent } from "nostr-tools";
 
 interface WindowNostr {
   getPublicKey(): Promise<string>;
