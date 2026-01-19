@@ -121,7 +121,19 @@ The AI assistant's behavior and knowledge is defined by the AGENTS.md file, whic
 
 ## Nostr Protocol Integration
 
-This project comes with custom hooks for querying and publishing events on the Nostr network.
+This project uses **Applesauce v5**, a production-ready Nostr SDK with a reactive architecture built on RxJS. Applesauce provides a complete solution for building Nostr clients with real-time updates, efficient caching, and a powerful cast system for working with events.
+
+### Core Architecture
+
+Applesauce follows a layered architecture:
+
+1. **EventStore**: Central state container that stores all Nostr events in memory
+2. **RelayPool**: Manages WebSocket connections to Nostr relays
+3. **Loaders**: Automatically fetch missing events (replies, reactions, profiles, etc.)
+4. **Models**: Reactive data models that update when events change (ProfileModel, ThreadModel, etc.)
+5. **Casts**: Type-safe wrappers around events with computed properties (Note, User, Reaction, Zap)
+6. **Actions**: Pre-built operations for common tasks (CreateNote, UpdateProfile, FollowUser)
+7. **Accounts**: Multi-account management with various signer types
 
 ### Nostr Implementation Guidelines
 
@@ -200,11 +212,11 @@ When designing tags for Nostr events, follow these principles:
 5. **Querying Best Practices**:
    ```typescript
    // ❌ Inefficient: Get all events, filter in JavaScript
-   const events = await nostr.query([{ kinds: [30402] }]);
+   const events = store.getEvents({ kinds: [30402] });
    const filtered = events.filter(e => hasTag(e, 'product_type', 'electronics'));
 
    // ✅ Efficient: Filter at relay level
-   const events = await nostr.query([{ kinds: [30402], '#t': ['electronics'] }]);
+   pool.req(relays, [{ kinds: [30402], '#t': ['electronics'] }]);
    ```
 
 #### `t` Tag Filtering for Community-Specific Content
@@ -218,18 +230,18 @@ For applications focused on a specific community or niche, you can use `t` tags 
 **Implementation:**
 ```typescript
 // Publishing with community tag
-createEvent({
+const { publishEvent } = usePublish();
+await publishEvent({
   kind: 1,
   content: data.content,
   tags: [['t', 'farming']]
 });
 
 // Querying community content
-const events = await nostr.query([{
-  kinds: [1],
-  '#t': ['farming'],
-  limit: 20
-}], { signal });
+const notes = useTimeline(
+  ['wss://relay.damus.io'],
+  [{ kinds: [1], '#t': ['farming'], limit: 20 }]
+);
 ```
 
 ### Kind Ranges
@@ -279,319 +291,747 @@ The file `NIP.md` is used by this project to define a custom Nostr protocol docu
 
 Whenever new kinds are generated, the `NIP.md` file in the project must be created or updated to document the custom event schema. Whenever the schema of one of these custom events changes, `NIP.md` must also be updated accordingly.
 
-### The `useNostr` Hook
+### Core Hooks
 
-The `useNostr` hook returns an object containing a `nostr` property, with `.query()` and `.event()` methods for querying and publishing Nostr events respectively.
+Applesauce provides several React hooks for building Nostr applications. All hooks are re-exported from `/src/hooks/` for convenience.
 
-```typescript
-import { useNostr } from '@nostrify/react';
+#### `use$` - Subscribe to Observables
 
-function useCustomHook() {
-  const { nostr } = useNostr();
-
-  // ...
-}
-```
-
-### Connecting to Multiple Nostr Relays
-
-By default, the `nostr` object from `useNostr` uses a pool configuration that reads data from 1 relay and publishes to all configured relays. However, you can connect to specific relays or groups of relays for more granular control:
-
-#### Single Relay Connection
-
-To read and publish from one specific relay, use `nostr.relay()` with a WebSocket URL:
-
-```typescript
-import { useNostr } from '@nostrify/react';
-
-function useSpecificRelay() {
-  const { nostr } = useNostr();
-
-  // Connect to a specific relay
-  const relay = nostr.relay('wss://relay.damus.io');
-
-  // Query from this specific relay only
-  const events = await relay.query([{ kinds: [1], limit: 20 }], { signal });
-
-  // Publish to this specific relay only
-  await relay.event({ kind: 1, content: 'Hello from specific relay!' });
-}
-```
-
-#### Multiple Relay Group
-
-To read and publish from a specific set of relays, use `nostr.group()` with an array of relay URLs:
-
-```typescript
-import { useNostr } from '@nostrify/react';
-
-function useRelayGroup() {
-  const { nostr } = useNostr();
-
-  // Create a group of specific relays
-  const relayGroup = nostr.group([
-    'wss://relay.damus.io',
-    'wss://relay.nostr.band',
-    'wss://nos.lol'
-  ]);
-
-  // Query from all relays in the group
-  const events = await relayGroup.query([{ kinds: [1], limit: 20 }], { signal });
-
-  // Publish to all relays in the group
-  await relayGroup.event({ kind: 1, content: 'Hello from relay group!' });
-}
-```
-
-#### API Consistency
-
-Both `relay` and `group` objects have the same API as the main `nostr` object, including:
-
-- `.query()` - Query events with filters
-- `.req()` - Create subscriptions
-- `.event()` - Publish events
-- All other Nostr protocol methods
-
-#### Use Cases
-
-**Single Relay (`nostr.relay()`):**
-- Testing specific relay behavior
-- Querying relay-specific content
-- Debugging connectivity issues
-- Working with specialized relays
-
-**Relay Group (`nostr.group()`):**
-- Querying from trusted relay sets
-- Publishing to specific communities
-- Load balancing across relay subsets
-- Geographic relay optimization
-
-**Default Pool (`nostr`):**
-- General application queries
-- Maximum reach for publishing
-- Default user experience
-- Simplified relay management
-
-### Query Nostr Data with `useNostr` and Tanstack Query
-
-When querying Nostr, the best practice is to create custom hooks that combine `useNostr` and `useQuery` to get the required data.
-
-```typescript
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/query';
-
-function usePosts() {
-  const { nostr } = useNostr();
-
-  return useQuery({
-    queryKey: ['posts'],
-    queryFn: async (c) => {
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(1500)]);
-      const events = await nostr.query([{ kinds: [1], limit: 20 }], { signal });
-      return events; // these events could be transformed into another format
-    },
-  });
-}
-```
-
-### Efficient Query Design
-
-**Critical**: Always minimize the number of separate queries to avoid rate limiting and improve performance. Combine related queries whenever possible.
-
-**✅ Efficient - Single query with multiple kinds:**
-```typescript
-// Query multiple event types in one request
-const events = await nostr.query([
-  {
-    kinds: [1, 6, 16], // All repost kinds in one query
-    '#e': [eventId],
-    limit: 150,
-  }
-], { signal });
-
-// Separate by type in JavaScript
-const notes = events.filter((e) => e.kind === 1);
-const reposts = events.filter((e) => e.kind === 6);
-const genericReposts = events.filter((e) => e.kind === 16);
-```
-
-**❌ Inefficient - Multiple separate queries:**
-```typescript
-// This creates unnecessary load and can trigger rate limiting
-const [notes, reposts, genericReposts] = await Promise.all([
-  nostr.query([{ kinds: [1], '#e': [eventId] }], { signal }),
-  nostr.query([{ kinds: [6], '#e': [eventId] }], { signal }),
-  nostr.query([{ kinds: [16], '#e': [eventId] }], { signal }),
-]);
-```
-
-**Query Optimization Guidelines:**
-1. **Combine kinds**: Use `kinds: [1, 6, 16]` instead of separate queries
-2. **Use multiple filters**: When you need different tag filters, use multiple filter objects in a single query
-3. **Adjust limits**: When combining queries, increase the limit appropriately
-4. **Filter in JavaScript**: Separate event types after receiving results rather than making multiple requests
-5. **Consider relay capacity**: Each query consumes relay resources and may count against rate limits
-
-The data may be transformed into a more appropriate format if needed, and multiple calls to `nostr.query()` may be made in a single queryFn.
-
-### Event Validation
-
-When querying events, if the event kind being returned has required tags or required JSON fields in the content, the events should be filtered through a validator function. This is not generally needed for kinds such as 1, where all tags are optional and the content is freeform text, but is especially useful for custom kinds as well as kinds with strict requirements.
-
-```typescript
-// Example validator function for NIP-52 calendar events
-function validateCalendarEvent(event: NostrEvent): boolean {
-  // Check if it's a calendar event kind
-  if (![31922, 31923].includes(event.kind)) return false;
-
-  // Check for required tags according to NIP-52
-  const d = event.tags.find(([name]) => name === 'd')?.[1];
-  const title = event.tags.find(([name]) => name === 'title')?.[1];
-  const start = event.tags.find(([name]) => name === 'start')?.[1];
-
-  // All calendar events require 'd', 'title', and 'start' tags
-  if (!d || !title || !start) return false;
-
-  // Additional validation for date-based events (kind 31922)
-  if (event.kind === 31922) {
-    // start tag should be in YYYY-MM-DD format for date-based events
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(start)) return false;
-  }
-
-  // Additional validation for time-based events (kind 31923)
-  if (event.kind === 31923) {
-    // start tag should be a unix timestamp for time-based events
-    const timestamp = parseInt(start);
-    if (isNaN(timestamp) || timestamp <= 0) return false;
-  }
-
-  return true;
-}
-
-function useCalendarEvents() {
-  const { nostr } = useNostr();
-
-  return useQuery({
-    queryKey: ['calendar-events'],
-    queryFn: async (c) => {
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(1500)]);
-      const events = await nostr.query([{ kinds: [31922, 31923], limit: 20 }], { signal });
-
-      // Filter events through validator to ensure they meet NIP-52 requirements
-      return events.filter(validateCalendarEvent);
-    },
-  });
-}
-```
-
-### The `useAuthor` Hook
-
-To display profile data for a user by their Nostr pubkey (such as an event author), use the `useAuthor` hook.
+The `use$` hook subscribes to RxJS observables and returns the current value. It automatically unsubscribes when the component unmounts.
 
 ```tsx
-import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { ProfileModel } from 'applesauce-core/models';
 
-function Post({ event }: { event: NostrEvent }) {
-  const author = useAuthor(event.pubkey);
-  const metadata: NostrMetadata | undefined = author.data?.metadata;
+function UserProfile({ pubkey }: { pubkey: string }) {
+  const store = useEventStore();
+  const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey, store]);
 
-  const displayName = metadata?.name ?? genUserName(event.pubkey);
-  const profileImage = metadata?.picture;
-
-  // ...render elements with this data
+  return <div>{profile?.name ?? 'Anonymous'}</div>;
 }
 ```
 
-### `NostrMetadata` type
+**Key Features:**
+- Automatically handles subscription lifecycle
+- Re-subscribes when dependencies change
+- Returns `undefined` while loading
+- Type-safe with TypeScript
 
-```ts
-/** Kind 0 metadata. */
-interface NostrMetadata {
-  /** A short description of the user. */
-  about?: string;
-  /** A URL to a wide (~1024x768) picture to be optionally displayed in the background of a profile screen. */
-  banner?: string;
-  /** A boolean to clarify that the content is entirely or partially the result of automation, such as with chatbots or newsfeeds. */
-  bot?: boolean;
-  /** An alternative, bigger name with richer characters than `name`. `name` should always be set regardless of the presence of `display_name` in the metadata. */
-  display_name?: string;
-  /** A bech32 lightning address according to NIP-57 and LNURL specifications. */
-  lud06?: string;
-  /** An email-like lightning address according to NIP-57 and LNURL specifications. */
-  lud16?: string;
-  /** A short name to be displayed for the user. */
-  name?: string;
-  /** An email-like Nostr address according to NIP-05. */
-  nip05?: string;
-  /** A URL to the user's avatar. */
-  picture?: string;
-  /** A web URL related in any way to the event author. */
-  website?: string;
-}
-```
+#### `useEventStore` - Access the Global EventStore
 
-### The `useNostrPublish` Hook
-
-To publish events, use the `useNostrPublish` hook in this project. This hook automatically adds a "client" tag to published events.
+The `useEventStore` hook returns the global EventStore instance from context.
 
 ```tsx
-import { useState } from 'react';
-
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-
-export function MyComponent() {
-  const [ data, setData] = useState<Record<string, string>>({});
-
-  const { user } = useCurrentUser();
-  const { mutate: createEvent } = useNostrPublish();
-
-  const handleSubmit = () => {
-    createEvent({ kind: 1, content: data.content });
-  };
-
-  if (!user) {
-    return <span>You must be logged in to use this form.</span>;
-  }
-
-  return (
-    <form onSubmit={handleSubmit} disabled={!user}>
-      {/* ...some input fields */}
-    </form>
-  );
-}
-```
-
-The `useCurrentUser` hook should be used to ensure that the user is logged in before they are able to publish Nostr events.
-
-### Nostr Login
-
-To enable login with Nostr, simply use the `LoginArea` component already included in this project.
-
-```tsx
-import { LoginArea } from "@/components/auth/LoginArea";
+import { useEventStore } from '@/hooks/useEventStore';
 
 function MyComponent() {
+  const store = useEventStore();
+
+  // Query events from the store
+  const events = store.getEvents({ kinds: [1], limit: 20 });
+
+  // Add events to the store
+  store.add(event);
+
+  return <div>Total events: {store.count()}</div>;
+}
+```
+
+**EventStore Methods:**
+- `add(event)`: Add event to store
+- `getEvents(filter)`: Query events by filter
+- `getEvent(id)`: Get single event by ID
+- `timeline(filters)`: Get observable timeline
+- `model(ModelClass, ...args)`: Create reactive model
+- `count()`: Get total event count
+- `clear()`: Clear all events
+
+#### `useAccount` - Get Current Account
+
+The `useAccount` hook returns the currently logged-in account or `null`.
+
+```tsx
+import { useAccount } from '@/hooks/useAccount';
+
+function MyComponent() {
+  const account = useAccount();
+
+  if (!account) {
+    return <LoginPrompt />;
+  }
+
   return (
     <div>
-      {/* other components ... */}
-
-      <LoginArea className="max-w-60" />
+      <p>Logged in as {account.pubkey}</p>
+      <button onClick={() => account.signer.signEvent(template)}>
+        Sign Event
+      </button>
     </div>
   );
 }
 ```
 
-The `LoginArea` component handles all the login-related UI and interactions, including displaying login dialogs, sign up functionality, and switching between accounts. It should not be wrapped in any conditional logic.
+**Account Properties:**
+- `pubkey`: User's public key (hex)
+- `signer`: NIP-07 compatible signer for signing/encrypting
 
-`LoginArea` displays both "Log in" and "Sign Up" buttons when the user is logged out, and changes to an account switcher once the user is logged in. It is an inline-flex element by default. To make it expand to the width of its container, you can pass a className like `flex` (to make it a block element) or `w-full`. If it is left as inline-flex, it's recommended to set a max width.
+**Related Hook:**
+- `useIsLoggedIn()`: Returns boolean instead of account object
 
-**Important**: Social applications should include a profile menu button in the main interface (typically in headers/navigation) to provide access to account settings, profile editing, and logout functionality. Don't only show `LoginArea` in logged-out states.
+#### `useProfile` - Fetch User Profiles
 
-### `npub`, `naddr`, and other Nostr addresses
+The `useProfile` hook fetches and subscribes to user profile data using ProfileModel.
+
+```tsx
+import { useProfile } from '@/hooks/useProfile';
+
+function UserCard({ pubkey }: { pubkey: string }) {
+  const profile = useProfile(pubkey);
+
+  return (
+    <div>
+      <img src={profile?.picture} alt={profile?.name} />
+      <h3>{profile?.name ?? 'Anonymous'}</h3>
+      <p>{profile?.about}</p>
+    </div>
+  );
+}
+```
+
+**Profile Fields:**
+- `name`: Display name
+- `display_name`: Alternative display name
+- `picture`: Avatar URL
+- `banner`: Banner image URL
+- `about`: Bio/description
+- `nip05`: Nostr address
+- `lud06`/`lud16`: Lightning addresses
+- `website`: Personal website
+
+**Related Hook:**
+- `useMyProfile()`: Get current user's own profile
+
+#### `useTimeline` - Subscribe to Event Timelines
+
+The `useTimeline` hook subscribes to a live timeline of events from relays. Events are automatically cast to Note objects with reactive properties.
+
+```tsx
+import { useTimeline } from '@/hooks/useTimeline';
+
+function Timeline() {
+  const notes = useTimeline(
+    ['wss://relay.damus.io'],
+    [{ kinds: [1], limit: 20 }]
+  );
+
+  if (!notes) return <Loading />;
+
+  return (
+    <div>
+      {notes.map(note => (
+        <NoteCard key={note.id} note={note} />
+      ))}
+    </div>
+  );
+}
+```
+
+**How it works:**
+1. Queries relays with filters
+2. Adds events to EventStore
+3. Casts events to Note objects
+4. Updates automatically when events change
+
+**Related Hook:**
+- `useLocalTimeline(filters)`: Query only from EventStore (no relays)
+
+#### `usePublish` - Publish Events
+
+The `usePublish` hook provides a function to publish Nostr events. It automatically adds a "client" tag and handles signing.
+
+```tsx
+import { usePublish } from '@/hooks/usePublish';
+
+function PostForm() {
+  const { publishEvent, isPending } = usePublish();
+
+  const handleSubmit = async () => {
+    await publishEvent({
+      kind: 1,
+      content: 'Hello Nostr!',
+      tags: []
+    });
+  };
+
+  return <button onClick={handleSubmit} disabled={isPending}>Post</button>;
+}
+```
+
+**Features:**
+- Automatically signs with user's signer
+- Adds "client" tag (hostname on HTTPS)
+- Publishes to configured relays
+- Adds event to local EventStore
+- Returns published event
+
+**Backward Compatibility:**
+- `useNostrPublish()` is an alias for `usePublish()`
+
+#### `useAction` - Execute Pre-built Actions
+
+The `useAction` hook executes pre-built Nostr actions from the Actions library.
+
+```tsx
+import { useAction } from '@/hooks/useAction';
+import { CreateNote, FollowUser } from 'applesauce-actions/actions';
+
+function PostForm() {
+  const createNote = useAction(CreateNote);
+  const [content, setContent] = useState('');
+
+  const handleSubmit = async () => {
+    await createNote(content);
+    setContent('');
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <textarea value={content} onChange={e => setContent(e.target.value)} />
+      <button type="submit">Post</button>
+    </form>
+  );
+}
+
+function FollowButton({ pubkey }: { pubkey: string }) {
+  const followUser = useAction(FollowUser);
+  return <button onClick={() => followUser(pubkey)}>Follow</button>;
+}
+```
+
+**Available Actions:**
+- `CreateNote`: Publish text note (kind 1)
+- `DeleteEvent`: Delete an event (kind 5)
+- `UpdateProfile`: Update profile metadata (kind 0)
+- `UpdateContacts`: Update contact list (kind 3)
+- `FollowUser`/`UnfollowUser`: Manage follows
+- `MuteUser`/`UnmuteUser`: Manage mutes
+- `CreateBookmark`/`CreatePin`: Manage bookmarks/pins
+- And many more in `applesauce-actions/actions`
+
+### Querying Events from Relays
+
+There are three main patterns for querying events:
+
+#### Pattern 1: Using `useTimeline` Hook (Recommended)
+
+Best for feeds and timelines. Automatically handles subscriptions and casts to Note objects.
+
+```tsx
+import { useTimeline } from '@/hooks/useTimeline';
+
+function Feed() {
+  const notes = useTimeline(
+    ['wss://relay.damus.io', 'wss://relay.nostr.band'],
+    [{ kinds: [1], limit: 50 }]
+  );
+
+  if (!notes) return <Skeleton />;
+
+  return notes.map(note => <NoteCard key={note.id} note={note} />);
+}
+```
+
+#### Pattern 2: Direct RelayPool Queries
+
+For custom queries with more control. Use with `use$` for reactivity.
+
+```tsx
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { pool } from '@/services/pool';
+import { onlyEvents, mapEventsToStore, mapEventsToTimeline } from 'applesauce-relay';
+
+function CustomFeed() {
+  const store = useEventStore();
+
+  const events = use$(
+    () =>
+      pool.req(['wss://relay.damus.io'], [{ kinds: [1], authors: [pubkey] }]).pipe(
+        onlyEvents(), // Filter out EOSE messages
+        mapEventsToStore(store), // Add to store
+        mapEventsToTimeline() // Collect into array
+      ),
+    [pubkey, store]
+  );
+
+  return events?.map(e => <div key={e.id}>{e.content}</div>);
+}
+```
+
+#### Pattern 3: EventStore Queries
+
+For querying events already in the store (no relay queries).
+
+```tsx
+import { useEventStore } from '@/hooks/useEventStore';
+
+function LocalEvents() {
+  const store = useEventStore();
+  const events = store.getEvents({ kinds: [1], limit: 20 });
+
+  return events.map(e => <div key={e.id}>{e.content}</div>);
+}
+```
+
+### Publishing Events
+
+There are three patterns for publishing events:
+
+#### Pattern 1: Using `usePublish` Hook (Recommended)
+
+Best for simple event publishing.
+
+```tsx
+import { usePublish } from '@/hooks/usePublish';
+
+function CreatePost() {
+  const { publishEvent, isPending } = usePublish();
+
+  const handleSubmit = async (content: string) => {
+    await publishEvent({
+      kind: 1,
+      content,
+      tags: []
+    });
+  };
+
+  return <button onClick={() => handleSubmit('Hello!')} disabled={isPending}>Post</button>;
+}
+```
+
+#### Pattern 2: Using Actions (For Complex Operations)
+
+Best for pre-built operations like following users, updating profile, etc.
+
+```tsx
+import { useAction } from '@/hooks/useAction';
+import { UpdateProfile } from 'applesauce-actions/actions';
+
+function EditProfile() {
+  const updateProfile = useAction(UpdateProfile);
+
+  const handleSave = async (profile: { name: string; about: string }) => {
+    await updateProfile(profile);
+  };
+
+  return <button onClick={() => handleSave({ name: 'Alice', about: 'Developer' })}>Save</button>;
+}
+```
+
+#### Pattern 3: Direct Publishing with `publish` Function
+
+For maximum control or custom publishing logic.
+
+```tsx
+import { publish } from '@/services/pool';
+import { useAccount } from '@/hooks/useAccount';
+
+function CustomPublish() {
+  const account = useAccount();
+
+  const handlePublish = async () => {
+    const template = {
+      kind: 1,
+      content: 'Hello Nostr!',
+      tags: [],
+      created_at: Math.floor(Date.now() / 1000)
+    };
+
+    const signedEvent = await account!.signer.signEvent(template);
+    await publish(signedEvent);
+  };
+
+  return <button onClick={handlePublish}>Publish</button>;
+}
+```
+
+### Cast System
+
+Applesauce's cast system wraps raw Nostr events in type-safe classes with computed properties and reactive behavior. Casts automatically update when related events change.
+
+#### Note Cast
+
+The `Note` cast represents kind 1 text notes with helpful properties and methods.
+
+```tsx
+import { Note } from 'applesauce-common/casts';
+import { use$ } from '@/hooks/use$';
+
+function NoteCard({ note }: { note: Note }) {
+  // Reactive properties - update automatically
+  const author = use$(() => note.author); // User cast
+  const replyCount = use$(() => note.replies?.count); // Number of replies
+  const reactions = use$(() => note.reactions); // Reaction casts array
+  const replyTo = use$(() => note.replyTo); // Parent note if this is a reply
+
+  return (
+    <div>
+      <div>{author?.name ?? 'Anonymous'}</div>
+      <p>{note.content}</p>
+      <div>Replies: {replyCount ?? 0}</div>
+    </div>
+  );
+}
+```
+
+**Note Properties:**
+- `id`: Event ID
+- `content`: Note content
+- `author`: Observable<User> - Author profile
+- `replies`: Observable<CommentsModel> - Replies
+- `reactions`: Observable<Reaction[]> - Reactions
+- `zaps`: Observable<Zap[]> - Zaps
+- `replyTo`: Observable<Note> - Parent note
+- `mentions`: Observable<User[]> - Mentioned users
+
+#### User Cast
+
+The `User` cast represents user profiles with metadata.
+
+```tsx
+import { User } from 'applesauce-common/casts';
+import { use$ } from '@/hooks/use$';
+
+function UserCard({ user }: { user: User }) {
+  const profile = use$(() => user.profile); // ProfileContent
+
+  return (
+    <div>
+      <img src={profile?.picture} />
+      <h3>{profile?.name ?? user.pubkey.slice(0, 8)}</h3>
+      <p>{profile?.about}</p>
+    </div>
+  );
+}
+```
+
+**User Properties:**
+- `pubkey`: Public key
+- `profile`: Observable<ProfileContent> - Kind 0 metadata
+- `follows`: Observable<string[]> - Followed pubkeys
+- `followers`: Observable<string[]> - Follower pubkeys
+
+#### Reaction Cast
+
+The `Reaction` cast represents kind 7 reactions.
+
+```tsx
+import { Reaction } from 'applesauce-common/casts';
+import { use$ } from '@/hooks/use$';
+
+function ReactionsList({ reactions }: { reactions: Reaction[] }) {
+  return (
+    <div>
+      {reactions.map(reaction => {
+        const author = use$(() => reaction.author);
+        return (
+          <span key={reaction.id}>
+            {reaction.emoji} by {author?.name}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+**Reaction Properties:**
+- `emoji`: Reaction emoji (e.g., "❤️", "+", "-")
+- `target`: Observable<Note> - Target event
+- `author`: Observable<User> - Author of reaction
+
+#### Zap Cast
+
+The `Zap` cast represents NIP-57 lightning payments.
+
+```tsx
+import { Zap } from 'applesauce-common/casts';
+import { use$ } from '@/hooks/use$';
+
+function ZapsList({ zaps }: { zaps: Zap[] }) {
+  return (
+    <div>
+      {zaps.map(zap => {
+        const sender = use$(() => zap.sender);
+        return (
+          <div key={zap.id}>
+            {sender?.name} zapped {zap.amount} sats
+            {zap.comment && <p>{zap.comment}</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+**Zap Properties:**
+- `amount`: Amount in sats
+- `comment`: Optional zap comment
+- `sender`: Observable<User> - Sender
+- `target`: Observable<Note> - Target event
+
+### Models
+
+Applesauce Models are reactive data structures that automatically update when events change. Models are more powerful than casts and handle complex relationships.
+
+#### ProfileModel
+
+Fetches and tracks user profile metadata.
+
+```tsx
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { ProfileModel } from 'applesauce-core/models';
+
+function UserProfile({ pubkey }: { pubkey: string }) {
+  const store = useEventStore();
+  const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey, store]);
+
+  return (
+    <div>
+      <img src={profile?.picture} />
+      <h2>{profile?.name}</h2>
+      <p>{profile?.about}</p>
+    </div>
+  );
+}
+```
+
+#### ThreadModel
+
+Manages threaded conversations with replies.
+
+```tsx
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { ThreadModel } from 'applesauce-core/models';
+
+function ThreadView({ rootId }: { rootId: string }) {
+  const store = useEventStore();
+  const thread = use$(() => store.model(ThreadModel, rootId), [rootId, store]);
+
+  return (
+    <div>
+      <h3>Thread with {thread?.replies.length} replies</h3>
+      {thread?.replies.map(reply => (
+        <div key={reply.id}>{reply.content}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### CommentsModel
+
+Tracks comments/replies for an event.
+
+```tsx
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { CommentsModel } from 'applesauce-core/models';
+
+function CommentsList({ eventId }: { eventId: string }) {
+  const store = useEventStore();
+  const comments = use$(() => store.model(CommentsModel, eventId), [eventId, store]);
+
+  return (
+    <div>
+      <h4>{comments?.count} comments</h4>
+      {comments?.comments.map(comment => (
+        <div key={comment.id}>{comment.content}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### ZapsModel
+
+Tracks zaps for an event.
+
+```tsx
+import { use$ } from '@/hooks/use$';
+import { useEventStore } from '@/hooks/useEventStore';
+import { ZapsModel } from 'applesauce-core/models';
+
+function ZapsDisplay({ eventId }: { eventId: string }) {
+  const store = useEventStore();
+  const zapsModel = use$(() => store.model(ZapsModel, eventId), [eventId, store]);
+
+  const totalAmount = zapsModel?.zaps.reduce((sum, zap) => sum + zap.amount, 0) ?? 0;
+
+  return (
+    <div>
+      <p>Total zapped: {totalAmount} sats</p>
+    </div>
+  );
+}
+```
+
+### Loaders and Infinite Scroll
+
+Applesauce provides loaders for implementing infinite scroll and pagination. See **`docs/NOSTR_INFINITE_SCROLL.md`** for complete implementation guide.
+
+**Key Concepts:**
+- **createTimelineLoader**: For paginated feeds/timelines
+- **createEventLoader**: Automatically loads missing events
+- **addressLoader**: For addressable events (kind 30000-39999)
+- **reactionsLoader**: For loading reactions
+
+**Example:**
+```tsx
+import { createTimelineLoader } from 'applesauce-loaders/loaders';
+import { pool } from '@/services/pool';
+import { eventStore } from '@/services/stores';
+
+const loader = createTimelineLoader(pool, {
+  eventStore,
+  relays: ['wss://relay.damus.io'],
+  filters: [{ kinds: [1], limit: 20 }]
+});
+
+// Load more events
+await loader.loadMore();
+```
+
+### Authentication
+
+#### LoginArea Component
+
+The `LoginArea` component provides complete login/signup UI.
+
+```tsx
+import { LoginArea } from '@/components/auth/LoginArea';
+
+function Header() {
+  return (
+    <header>
+      <h1>My Nostr App</h1>
+      <LoginArea className="max-w-60" />
+    </header>
+  );
+}
+```
+
+**Features:**
+- Shows "Log in" and "Sign up" buttons when logged out
+- Shows account switcher when logged in
+- Handles multiple accounts
+- Supports NIP-07 extension, nsec, and bunker logins
+
+#### useLoginActions Hook
+
+For custom login flows, use `useLoginActions` to access login methods.
+
+```tsx
+import { useLoginActions } from '@/hooks/useLoginActions';
+
+function CustomLogin() {
+  const { extension, nsec, bunker, logout } = useLoginActions();
+
+  const handleExtensionLogin = async () => {
+    try {
+      await extension();
+      console.log('Logged in with extension');
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+
+  return <button onClick={handleExtensionLogin}>Login with Extension</button>;
+}
+```
+
+**Available Methods:**
+- `extension()`: Login with NIP-07 browser extension
+- `nsec(nsecString)`: Login with secret key
+- `bunker(bunkerUri)`: Login with NIP-46 remote signer
+- `logout()`: Log out current user
+
+#### Account Management
+
+Accounts are managed by the global `accountManager` in `/src/services/accounts.ts`.
+
+```tsx
+import { accountManager } from '@/services/accounts';
+
+// Get active account
+const active = accountManager.getActive();
+
+// Get all accounts
+const accounts = accountManager.getAccounts();
+
+// Switch account
+accountManager.setActive(pubkey);
+
+// Remove account
+accountManager.removeAccount(pubkey);
+```
+
+**Account Types:**
+- `ExtensionAccount`: NIP-07 browser extension
+- `PrivateKeyAccount`: Local private key (nsec)
+- `NostrConnectAccount`: NIP-46 remote signer (bunker)
+
+### File Uploads
+
+Use the `useUploadFile` hook to upload files to Blossom servers.
+
+```tsx
+import { useUploadFile } from '@/hooks/useUploadFile';
+
+function ImageUpload() {
+  const { mutateAsync: uploadFile, isPending } = useUploadFile();
+
+  const handleUpload = async (file: File) => {
+    try {
+      const tags = await uploadFile(file);
+      const url = tags[0][1]; // First tag contains URL
+      console.log('Uploaded to:', url);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
+  };
+
+  return (
+    <input
+      type="file"
+      onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+      disabled={isPending}
+    />
+  );
+}
+```
+
+**Features:**
+- Uploads to Blossom servers (primal.net, satellite.earth)
+- Returns NIP-94 compatible tags
+- Automatic authentication with user's signer
+- Falls back to next server on failure
+
+**Returned Tags:**
+```typescript
+[
+  ["url", "https://cdn.satellite.earth/..."],
+  ["m", "image/jpeg"],
+  ["x", "sha256hash..."],
+  ["size", "123456"]
+]
+```
+
+### NIP-19 Identifiers
 
 Nostr defines a set of bech32-encoded identifiers in NIP-19. Their prefixes and purposes:
 
@@ -603,226 +1043,116 @@ Nostr defines a set of bech32-encoded identifiers in NIP-19. Their prefixes and 
 - `naddr1`: **addressable event coordinates** - For parameterized replaceable events (kind 30000-39999)
 - `nrelay1`: **relay references** - Relay URLs (deprecated)
 
-#### Key Differences Between Similar Identifiers
+#### Key Differences
 
 **`note1` vs `nevent1`:**
-- `note1`: Contains only the event ID (32 bytes) - specifically for kind:1 events (Short Text Notes) as defined in NIP-10
+- `note1`: Contains only the event ID (32 bytes) - specifically for kind:1 events
 - `nevent1`: Contains event ID plus optional relay hints and author pubkey - for any event kind
-- Use `note1` for simple references to text notes and threads
-- Use `nevent1` when you need to include relay hints or author context for any event type
+- Use `note1` for simple references to text notes
+- Use `nevent1` when you need relay hints or author context
 
 **`npub1` vs `nprofile1`:**
 - `npub1`: Contains only the public key (32 bytes)
 - `nprofile1`: Contains public key plus optional relay hints and petname
 - Use `npub1` for simple user references
-- Use `nprofile1` when you need to include relay hints or display name context
+- Use `nprofile1` when you need relay hints
 
-#### NIP-19 Routing Implementation
+#### NIP-19 Routing
 
-**Critical**: NIP-19 identifiers should be handled at the **root level** of URLs (e.g., `/note1...`, `/npub1...`, `/naddr1...`), NOT nested under paths like `/note/note1...` or `/profile/npub1...`.
+**Critical**: NIP-19 identifiers should be handled at the **root level** of URLs (e.g., `/note1...`, `/npub1...`, `/naddr1...`), NOT nested under paths like `/note/note1...`.
 
-This project includes a boilerplate `NIP19Page` component that provides the foundation for handling all NIP-19 identifier types at the root level. The component is configured in the routing system and ready for AI agents to populate with specific functionality.
+This project includes a boilerplate `NIP19Page` component that handles all NIP-19 identifier types at the root level.
 
-**How it works:**
+**Example URLs:**
+- `/npub1abc123...` - User profile
+- `/note1def456...` - Kind:1 text note
+- `/nevent1ghi789...` - Any event with relay hints
+- `/naddr1jkl012...` - Addressable event
 
-1. **Root-Level Route**: The route `/:nip19` in `AppRouter.tsx` catches all NIP-19 identifiers
-2. **Automatic Decoding**: The `NIP19Page` component automatically decodes the identifier using `nip19.decode()`
-3. **Type-Specific Sections**: Different sections are rendered based on the identifier type:
-   - `npub1`/`nprofile1`: Profile section with placeholder for profile view
-   - `note1`: Note section with placeholder for kind:1 text note view
-   - `nevent1`: Event section with placeholder for any event type view
-   - `naddr1`: Addressable event section with placeholder for articles, marketplace items, etc.
-4. **Error Handling**: Invalid, vacant, or unsupported identifiers show 404 NotFound page
-5. **Ready for Population**: Each section includes comments indicating where AI agents should implement specific functionality
+#### Decoding NIP-19 Identifiers
 
-**Example URLs that work automatically:**
-- `/npub1abc123...` - User profile (needs implementation)
-- `/note1def456...` - Kind:1 text note (needs implementation)
-- `/nevent1ghi789...` - Any event with relay hints (needs implementation)
-- `/naddr1jkl012...` - Addressable event (needs implementation)
+Always decode NIP-19 identifiers before using them in queries:
 
-**Features included:**
-- Basic NIP-19 identifier decoding and routing
-- Type-specific sections for different identifier types
-- Error handling for invalid identifiers
-- Responsive container structure
-- Comments indicating where to implement specific views
-
-**Error handling:**
-- Invalid NIP-19 format → 404 NotFound
-- Unsupported identifier types (like `nsec1`) → 404 NotFound
-- Empty or missing identifiers → 404 NotFound
-
-To implement NIP-19 routing in your Nostr application:
-
-1. **The NIP19Page boilerplate is already created** - populate sections with specific functionality
-2. **The route is already configured** in `AppRouter.tsx`
-3. **Error handling is built-in** - all edge cases show appropriate 404 responses
-4. **Add specific components** for profile views, event displays, etc. as needed
-
-#### Event Type Distinctions
-
-**`note1` identifiers** are specifically for **kind:1 events** (Short Text Notes) as defined in NIP-10: "Text Notes and Threads". These are the basic social media posts in Nostr.
-
-**`nevent1` identifiers** can reference any event kind and include additional metadata like relay hints and author pubkey. Use `nevent1` when:
-- The event is not a kind:1 text note
-- You need to include relay hints for better discoverability
-- You want to include author context
-
-#### Use in Filters
-
-The base Nostr protocol uses hex string identifiers when filtering by event IDs and pubkeys. Nostr filters only accept hex strings.
-
-```ts
-// ❌ Wrong: naddr is not decoded
-const events = await nostr.query(
-  [{ ids: [naddr] }],
-  { signal }
-);
-```
-
-Corrected example:
-
-```ts
-// Import nip19 from nostr-tools
+```tsx
 import { nip19 } from 'nostr-tools';
 
-// Decode a NIP-19 identifier
+// Decode identifier
 const decoded = nip19.decode(value);
 
-// Optional: guard certain types (depending on the use-case)
-if (decoded.type !== 'naddr') {
-  throw new Error('Unsupported Nostr identifier');
-}
+if (decoded.type === 'naddr') {
+  const naddr = decoded.data;
 
-// Get the addr object
-const naddr = decoded.data;
-
-// ✅ Correct: naddr is expanded into the correct filter
-const events = await nostr.query(
-  [{
+  // Query with proper filter
+  const events = store.getEvents({
     kinds: [naddr.kind],
     authors: [naddr.pubkey],
-    '#d': [naddr.identifier],
-  }],
-  { signal }
-);
-```
-
-#### Implementation Guidelines
-
-1. **Always decode NIP-19 identifiers** before using them in queries
-2. **Use the appropriate identifier type** based on your needs:
-   - Use `note1` for kind:1 text notes specifically
-   - Use `nevent1` when including relay hints or for non-kind:1 events
-   - Use `naddr1` for addressable events (always includes author pubkey for security)
-3. **Handle different identifier types** appropriately:
-   - `npub1`/`nprofile1`: Display user profiles
-   - `note1`: Display kind:1 text notes specifically
-   - `nevent1`: Display any event with optional relay context
-   - `naddr1`: Display addressable events (articles, marketplace items, etc.)
-4. **Security considerations**: Always use `naddr1` for addressable events instead of just the `d` tag value, as `naddr1` contains the author pubkey needed to create secure filters
-5. **Error handling**: Gracefully handle invalid or unsupported NIP-19 identifiers with 404 responses
-
-### Nostr Edit Profile
-
-To include an Edit Profile form, place the `EditProfileForm` component in the project:
-
-```tsx
-import { EditProfileForm } from "@/components/EditProfileForm";
-
-function EditProfilePage() {
-  return (
-    <div>
-      {/* you may want to wrap this in a layout or include other components depending on the project ... */}
-
-      <EditProfileForm />
-    </div>
-  );
+    '#d': [naddr.identifier]
+  });
 }
 ```
 
-The `EditProfileForm` component displays just the form. It requires no props, and will "just work" automatically.
+### Event Validation
 
-### Direct Messaging (NIP-04 & NIP-17)
+When querying events with required tags or content fields, filter through a validator function:
 
-The project includes a complete direct messaging system with real-time updates, encrypted storage, and support for both NIP-04 (legacy) and NIP-17 (modern private messaging) protocols. **The system is disabled by default** - enable it by passing `enabled: true` in the `DMProvider` config.
+```typescript
+function validateCalendarEvent(event: NostrEvent): boolean {
+  if (![31922, 31923].includes(event.kind)) return false;
 
-For complete implementation guide including:
-- Setup and configuration
-- Sending messages and file attachments
-- Using the `DMMessagingInterface` component
-- Building custom messaging UIs
-- Protocol comparison (NIP-04 vs NIP-17)
-- Advanced features and architecture
+  const d = event.tags.find(([name]) => name === 'd')?.[1];
+  const title = event.tags.find(([name]) => name === 'title')?.[1];
+  const start = event.tags.find(([name]) => name === 'start')?.[1];
 
-See **`docs/NOSTR_DIRECT_MESSAGES.md`**
+  if (!d || !title || !start) return false;
 
-### Uploading Files on Nostr
+  if (event.kind === 31922) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(start)) return false;
+  }
 
-Use the `useUploadFile` hook to upload files. This hook uses Blossom servers for file storage and returns NIP-94 compatible tags.
+  return true;
+}
+
+// Use in timeline
+const notes = useTimeline(relays, filters);
+const validNotes = notes?.filter(validateCalendarEvent);
+```
+
+### Encryption and Decryption
+
+Use the account signer for NIP-44 encryption:
 
 ```tsx
-import { useUploadFile } from "@/hooks/useUploadFile";
+import { useAccount } from '@/hooks/useAccount';
 
-function MyComponent() {
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+function EncryptedMessage() {
+  const account = useAccount();
 
-  const handleUpload = async (file: File) => {
-    try {
-      // Provides an array of NIP-94 compatible tags
-      // The first tag in the array contains the URL
-      const [[_, url]] = await uploadFile(file);
-      // ...use the url
-    } catch (error) {
-      // ...handle errors
+  const handleEncrypt = async (message: string, recipientPubkey: string) => {
+    if (!account?.signer.nip44) {
+      throw new Error('NIP-44 not supported by signer');
     }
+
+    const encrypted = await account.signer.nip44.encrypt(recipientPubkey, message);
+    return encrypted;
   };
 
-  // ...rest of component
+  const handleDecrypt = async (encrypted: string, senderPubkey: string) => {
+    if (!account?.signer.nip44) {
+      throw new Error('NIP-44 not supported by signer');
+    }
+
+    const decrypted = await account.signer.nip44.decrypt(senderPubkey, encrypted);
+    return decrypted;
+  };
+
+  return <div>...</div>;
 }
 ```
 
-To attach files to kind 1 events, each file's URL should be appended to the event's `content`, and an `imeta` tag should be added for each file. For kind 0 events, the URL by itself can be used in relevant fields of the JSON content.
+### Direct Messaging
 
-### Nostr Encryption and Decryption
-
-The logged-in user has a `signer` object (matching the NIP-07 signer interface) that can be used for encryption and decryption. The signer's nip44 methods handle all cryptographic operations internally, including key derivation and conversation key management, so you never need direct access to private keys. Always use the signer interface for encryption rather than requesting private keys from users, as this maintains security and follows best practices.
-
-```ts
-// Get the current user
-const { user } = useCurrentUser();
-
-// Optional guard to check that nip44 is available
-if (!user.signer.nip44) {
-  throw new Error("Please upgrade your signer extension to a version that supports NIP-44 encryption");
-}
-
-// Encrypt message to self
-const encrypted = await user.signer.nip44.encrypt(user.pubkey, "hello world");
-// Decrypt message to self
-const decrypted = await user.signer.nip44.decrypt(user.pubkey, encrypted) // "hello world"
-```
-
-### Rendering Rich Text Content
-
-Nostr text notes (kind 1, 11, and 1111) have a plaintext `content` field that may contain URLs, hashtags, and Nostr URIs. These events should render their content using the `NoteContent` component:
-
-```tsx
-import { NoteContent } from "@/components/NoteContent";
-
-export function Post(/* ...props */) {
-  // ...
-
-  return (
-    <CardContent className="pb-2">
-      <div className="whitespace-pre-wrap break-words">
-        <NoteContent event={post} className="text-sm" />
-      </div>
-    </CardContent>
-  );
-}
-```
+The project includes a complete direct messaging system with NIP-04 and NIP-17 support. See **`docs/NOSTR_DIRECT_MESSAGES.md`** for complete implementation guide.
 
 ## App Configuration
 
@@ -883,13 +1213,12 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 
 ## Development Practices
 
-- Uses React Query for data fetching and caching
+- Uses Applesauce v5 with reactive RxJS architecture
 - Follows shadcn/ui component patterns
 - Implements Path Aliases with `@/` prefix for cleaner imports
 - Uses Vite for fast development and production builds
 - Component-based architecture with React hooks
-- Default connection to one Nostr relay for best performance
-- Comprehensive provider setup with NostrLoginProvider, QueryClientProvider, and custom AppProvider
+- Comprehensive provider setup with EventStoreProvider, AccountsProvider, and custom AppProvider
 - **Never use the `any` type**: Always use proper TypeScript types for type safety
 
 ## Loading States
@@ -943,7 +1272,7 @@ import { Card, CardContent } from '@/components/ui/card';
 - Create breathtaking, immersive designs that feel like bespoke masterpieces, rivaling the polish of Apple, Stripe, or luxury brands
 - Designs must be production-ready, fully featured, with no placeholders unless explicitly requested, ensuring every element serves a functional and aesthetic purpose
 - Avoid generic or templated aesthetics at all costs; every design must have a unique, brand-specific visual signature that feels custom-crafted
-- Headers must be dynamic, immersive, and storytelling-driven, using layered visuals, motion, and symbolic elements to reflect the brand’s identity—never use simple “icon and text” combos
+- Headers must be dynamic, immersive, and storytelling-driven, using layered visuals, motion, and symbolic elements to reflect the brand's identity—never use simple "icon and text" combos
 - Incorporate purposeful, lightweight animations for scroll reveals, micro-interactions (e.g., hover, click, transitions), and section transitions to create a sense of delight and fluidity
 
 ### Design Principles
@@ -957,7 +1286,7 @@ import { Card, CardContent } from '@/components/ui/card';
 ### Avoid Generic Design
 
 - No basic layouts (e.g., text-on-left, image-on-right) without significant custom polish, such as dynamic backgrounds, layered visuals, or interactive elements
-- No simplistic headers; they must be immersive, animated, and reflective of the brand’s core identity and mission
+- No simplistic headers; they must be immersive, animated, and reflective of the brand's core identity and mission
 - No designs that could be mistaken for free templates or overused patterns; every element must feel intentional and tailored
 
 ### Interaction Patterns
@@ -970,7 +1299,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 ### Technical Requirements
 
-- Curated color FRpalette (3-5 evocative colors + neutrals) that aligns with the brand’s emotional tone and creates a memorable impact
+- Curated color palette (3-5 evocative colors + neutrals) that aligns with the brand's emotional tone and creates a memorable impact
 - Ensure a minimum 4.5:1 contrast ratio for all text and interactive elements to meet accessibility standards
 - Use expressive, readable fonts (18px+ for body text, 40px+ for headlines) with a clear hierarchy; pair a modern sans-serif (e.g., Inter) with an elegant serif (e.g., Playfair Display) for personality
 - Design for full responsiveness, ensuring flawless performance and aesthetics across all screen sizes (mobile, tablet, desktop)
@@ -984,7 +1313,7 @@ import { Card, CardContent } from '@/components/ui/card';
 - Design reusable, modular components with consistent styling, behavior, and feedback states (e.g., hover, active, focus, error)
 - Include purposeful animations (e.g., scale-up on hover, fade-in on scroll) to guide attention and enhance interactivity without distraction
 - Ensure full accessibility support with keyboard navigation, ARIA labels, and visible focus states (e.g., a glowing outline in an accent color)
-- Use custom icons or illustrations for components to reinforce the brand’s visual identity
+- Use custom icons or illustrations for components to reinforce the brand's visual identity
 
 ### Adding Fonts
 
