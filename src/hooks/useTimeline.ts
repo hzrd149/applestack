@@ -5,7 +5,7 @@ import { Note } from "applesauce-common/casts";
 import { castTimelineStream } from "applesauce-common/observable";
 import { mapEventsToStore, mapEventsToTimeline } from "applesauce-core";
 import { onlyEvents } from "applesauce-relay";
-import { pool } from "@/services/pool";
+import { pool } from "@/services/nostr";
 import type { Filter } from "applesauce-core/helpers";
 
 /**

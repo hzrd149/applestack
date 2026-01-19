@@ -12,19 +12,19 @@ Get started with Applestack:
 ```bash
 git clone https://github.com/yourusername/applestack.git
 cd applestack
-npm install
+pnpm install
 ```
 
 ### 2. Start Development
 ```bash
-npm run dev
+pnpm run dev
 # Visit http://localhost:5173
 ```
 
 ### 3. Build for Production
 ```bash
-npm run build
-npm run preview
+pnpm run build
+pnpm run preview
 ```
 
 ## ✨ What Makes Applestack Special
@@ -193,7 +193,7 @@ MKStack includes 48+ shadcn/ui components:
 Build your Applestack app for production:
 
 ```bash
-npm run build       # Build for production
+pnpm run build       # Build for production
 npm run preview     # Preview production build locally
 ```
 
@@ -229,7 +229,7 @@ To contribute:
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes following the project patterns
-4. Ensure tests pass with `npm test`
+4. Ensure tests pass with `pnpm test`
 5. Submit a pull request
 
 ## 📄 License

@@ -1,7 +1,6 @@
 import { ActionRunner, Actions } from "applesauce-actions";
 import { EventFactory } from "applesauce-core";
-import { eventStore } from "./stores";
-import { publish } from "./pool";
+import { eventStore, publish } from "./nostr";
 import { accountManager } from "./accounts";
 
 /**

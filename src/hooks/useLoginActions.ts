@@ -1,8 +1,8 @@
-import { Accounts } from "applesauce-accounts";
-import { ExtensionSigner, PrivateKeySigner } from "applesauce-signers";
-import { accountManager } from "@/services/accounts";
-import { nip19, getPublicKey } from "nostr-tools";
 import { toast } from "@/hooks/useToast";
+import { accountManager } from "@/services/accounts";
+import { Accounts } from "applesauce-accounts";
+import { ExtensionSigner, NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
+import { nip19 } from "nostr-tools";
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -26,9 +26,9 @@ export function useLoginActions() {
 
         // Create private key signer and account
         const secretKey = decoded.data; // Uint8Array
-        const pubkeyHex = getPublicKey(secretKey);
         const signer = new PrivateKeySigner(secretKey);
-        const account = new Accounts.PrivateKeyAccount(pubkeyHex, signer);
+        const pubkey = await signer.getPublicKey();
+        const account = new Accounts.PrivateKeyAccount(pubkey, signer);
 
         // Add to account manager
         accountManager.addAccount(account);
@@ -46,28 +46,28 @@ export function useLoginActions() {
      */
     async bunker(uri: string): Promise<void> {
       try {
-        // Parse the bunker URI to get options
-        // Format: bunker://pubkey?relay=wss://...&secret=...
-        const url = new URL(uri);
-        const remote = url.hostname || url.pathname.replace('//', '');
-        
-        if (!remote) {
-          throw new Error("Invalid bunker URI: missing remote pubkey");
-        }
-        
-        const relays = url.searchParams.getAll('relay');
-        const secret = url.searchParams.get('secret');
+        // Use fromBunkerURI to create and connect the signer
+        // This handles parsing the URI and connecting to the remote signer
+        const signer = await NostrConnectSigner.fromBunkerURI(uri);
 
-        // Create Nostr Connect account with remote pubkey and options
-        const options: { relays: string[]; secret?: string } = {
-          relays: relays.length > 0 ? relays : ['wss://relay.nsec.app'],
-        };
-        if (secret) {
-          options.secret = secret;
+        // Get the user's pubkey from the connected signer
+        const pubkey = await signer.getPublicKey();
+
+        // Check if this account is already logged in
+        const existing = accountManager.getAccountForPubkey(pubkey);
+
+        if (existing) {
+          // Just switch to the existing account
+          accountManager.setActive(existing.pubkey);
+          toast({
+            title: "Already logged in",
+            description: "Switched to existing account",
+          });
+          return;
         }
-        
-        // @ts-expect-error - NostrConnectSigner type compatibility issue in v5
-        const account = new Accounts.NostrConnectAccount(remote, options);
+
+        // Create NostrConnectAccount with the pubkey and signer
+        const account = new Accounts.NostrConnectAccount(pubkey, signer);
 
         // Add to account manager
         accountManager.addAccount(account);

@@ -4,16 +4,15 @@
 import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
-import { 
-  EventStoreProvider, 
+import {
+  EventStoreProvider,
   AccountsProvider,
   ActionsProvider,
   FactoryProvider,
 } from 'applesauce-react/providers';
-import { eventStore } from '@/services/stores';
+import { eventStore } from '@/services/nostr';
 import { accountManager } from '@/services/accounts';
 import { runner, factory } from '@/services/actions';
-import '@/services/loaders'; // Initialize loaders
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppRouter from './AppRouter';

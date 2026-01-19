@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useActiveAccount } from "applesauce-react/hooks";
-import { publish } from "@/services/pool";
+import { publish } from "@/services/nostr";
 import type { NostrEvent, EventTemplate } from "nostr-tools";
 
 /**
