@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from '@/hooks/useToast';
 import { useLoginActions } from '@/hooks/useLoginActions';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { usePublish } from '@/hooks/usePublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
@@ -28,7 +28,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     picture: ''
   });
   const login = useLoginActions();
-  const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
+  const { publishEvent, isPending: isPublishing } = usePublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +67,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       document.body.removeChild(a);
 
       // Continue to profile step
-      login.nsec(nsec);
+      await login.nsec(nsec);
       setStep('profile');
     } catch {
       toast({
@@ -130,10 +130,9 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
         if (profileData.about) metadata.about = profileData.about;
         if (profileData.picture) metadata.picture = profileData.picture;
 
-        await publishEvent({
-          kind: 0,
-          content: JSON.stringify(metadata),
-        });
+        // Use ProfileBlueprint from applesauce-common
+        const { ProfileBlueprint } = await import('applesauce-common/blueprints');
+        await publishEvent(ProfileBlueprint(metadata));
       }
     } catch {
       toast({

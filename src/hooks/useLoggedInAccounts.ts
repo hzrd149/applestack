@@ -1,56 +1,61 @@
-import { useNostr } from '@nostrify/react';
-import { useNostrLogin } from '@nostrify/react/login';
-import { useQuery } from '@tanstack/react-query';
-import { NSchema as n, NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import { useAccounts, useActiveAccount } from "applesauce-react/hooks";
+import { useProfile } from "./useProfile";
+import type { NostrMetadata } from "applesauce-core/helpers";
+import { accountManager } from "@/services/accounts";
 
 export interface Account {
   id: string;
   pubkey: string;
-  event?: NostrEvent;
   metadata: NostrMetadata;
+  label?: string;
 }
 
+/**
+ * Get all logged-in accounts with their profile metadata.
+ * Uses applesauce-accounts for multi-account management.
+ */
 export function useLoggedInAccounts() {
-  const { nostr } = useNostr();
-  const { logins, setLogin, removeLogin } = useNostrLogin();
+  const accounts = useAccounts();
+  const activeAccount = useActiveAccount();
 
-  const { data: authors = [] } = useQuery({
-    queryKey: ['nostr', 'logins', logins.map((l) => l.id).join(';')],
-    queryFn: async ({ signal }) => {
-      const events = await nostr.query(
-        [{ kinds: [0], authors: logins.map((l) => l.pubkey) }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(1500)]) },
-      );
+  // Map accounts to include profile metadata
+  const authors: Account[] = accounts.map((account) => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const profile = useProfile(account.pubkey);
 
-      return logins.map(({ id, pubkey }): Account => {
-        const event = events.find((e) => e.pubkey === pubkey);
-        try {
-          const metadata = n.json().pipe(n.metadata()).parse(event?.content);
-          return { id, pubkey, metadata, event };
-        } catch {
-          return { id, pubkey, metadata: {}, event };
-        }
-      });
-    },
-    retry: 3,
+    return {
+      id: account.pubkey, // Use pubkey as ID for consistency
+      pubkey: account.pubkey,
+      metadata: profile ?? {},
+      label: account.label,
+    };
   });
 
-  // Current user is the first login
+  // Current user is the active account
   const currentUser: Account | undefined = (() => {
-    const login = logins[0];
-    if (!login) return undefined;
-    const author = authors.find((a) => a.id === login.id);
-    return { metadata: {}, ...author, id: login.id, pubkey: login.pubkey };
+    if (!activeAccount) return undefined;
+
+    const author = authors.find((a) => a.pubkey === activeAccount.pubkey);
+    return author ?? {
+      id: activeAccount.pubkey,
+      pubkey: activeAccount.pubkey,
+      metadata: {},
+      label: activeAccount.label,
+    };
   })();
 
-  // Other users are all logins except the current one
-  const otherUsers = (authors || []).slice(1) as Account[];
+  // Other users are all accounts except the current one
+  const otherUsers = authors.filter((a) => a.pubkey !== activeAccount?.pubkey);
 
   return {
     authors,
     currentUser,
     otherUsers,
-    setLogin,
-    removeLogin,
+    setLogin: (id: string) => {
+      accountManager.setActiveAccount(id);
+    },
+    removeLogin: (id: string) => {
+      accountManager.removeAccount(id);
+    },
   };
 }

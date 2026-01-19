@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { createHead, UnheadProvider } from '@unhead/react/client';
 import { BrowserRouter } from 'react-router-dom';
-import { NostrLoginProvider } from '@nostrify/react/login';
-import NostrProvider from '@/components/NostrProvider';
-import { AppProvider } from '@/components/AppProvider';
+import { EventStoreProvider, AccountsProvider } from 'applesauce-react/providers';
+import { EventStore } from 'applesauce-core';
+import { AccountManager } from 'applesauce-accounts';
 import { NWCProvider } from '@/contexts/NWCContext';
-import { AppConfig } from '@/contexts/AppContext';
 
 interface TestAppProps {
   children: React.ReactNode;
@@ -14,38 +13,21 @@ interface TestAppProps {
 export function TestApp({ children }: TestAppProps) {
   const head = createHead();
 
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  const defaultConfig: AppConfig = {
-    theme: 'light',
-    relayMetadata: {
-      relays: [
-        { url: 'wss://relay.nostr.band', read: true, write: true },
-      ],
-      updatedAt: 0,
-    },
-  };
+  // Create isolated test instances
+  const eventStore = useMemo(() => new EventStore(), []);
+  const accountManager = useMemo(() => new AccountManager(), []);
 
   return (
     <UnheadProvider head={head}>
-      <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig}>
-        <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey='test-login'>
-            <NostrProvider>
-              <NWCProvider>
-                <BrowserRouter>
-                  {children}
-                </BrowserRouter>
-              </NWCProvider>
-            </NostrProvider>
-          </NostrLoginProvider>
-        </QueryClientProvider>
-      </AppProvider>
+      <EventStoreProvider eventStore={eventStore}>
+        <AccountsProvider manager={accountManager}>
+          <NWCProvider>
+            <BrowserRouter>
+              {children}
+            </BrowserRouter>
+          </NWCProvider>
+        </AccountsProvider>
+      </EventStoreProvider>
     </UnheadProvider>
   );
 }

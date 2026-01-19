@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useAccount } from '@/hooks/useAccount';
+import { useMyProfile } from '@/hooks/useProfile';
+import { useAction } from '@/hooks/useAction';
+import { UpdateProfile } from 'applesauce-actions/actions';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,21 +20,31 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Upload } from 'lucide-react';
-import { NSchema as n, type NostrMetadata } from '@nostrify/nostrify';
-import { useQueryClient } from '@tanstack/react-query';
+import type { NostrMetadata } from 'applesauce-core/helpers';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { z } from 'zod';
+
+// Validation schema for profile metadata
+const metadataSchema = z.object({
+  name: z.string().optional(),
+  about: z.string().optional(),
+  picture: z.string().url().optional().or(z.literal('')),
+  banner: z.string().url().optional().or(z.literal('')),
+  website: z.string().url().optional().or(z.literal('')),
+  nip05: z.string().optional(),
+  bot: z.boolean().optional(),
+});
 
 export const EditProfileForm: React.FC = () => {
-  const queryClient = useQueryClient();
-
-  const { user, metadata } = useCurrentUser();
-  const { mutateAsync: publishEvent, isPending } = useNostrPublish();
+  const account = useAccount();
+  const profile = useMyProfile();
+  const updateProfile = useAction(UpdateProfile);
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
 
   // Initialize the form with default values
   const form = useForm<NostrMetadata>({
-    resolver: zodResolver(n.metadata()),
+    resolver: zodResolver(metadataSchema),
     defaultValues: {
       name: '',
       about: '',
@@ -46,18 +58,18 @@ export const EditProfileForm: React.FC = () => {
 
   // Update form values when user data is loaded
   useEffect(() => {
-    if (metadata) {
+    if (profile) {
       form.reset({
-        name: metadata.name || '',
-        about: metadata.about || '',
-        picture: metadata.picture || '',
-        banner: metadata.banner || '',
-        website: metadata.website || '',
-        nip05: metadata.nip05 || '',
-        bot: metadata.bot || false,
+        name: profile.name || '',
+        about: profile.about || '',
+        picture: profile.picture || '',
+        banner: profile.banner || '',
+        website: profile.website || '',
+        nip05: profile.nip05 || '',
+        bot: profile.bot || false,
       });
     }
-  }, [metadata, form]);
+  }, [profile, form]);
 
   // Handle file uploads for profile picture and banner
   const uploadPicture = async (file: File, field: 'picture' | 'banner') => {
@@ -79,8 +91,10 @@ export const EditProfileForm: React.FC = () => {
     }
   };
 
+  const [isPending, setIsPending] = React.useState(false);
+
   const onSubmit = async (values: NostrMetadata) => {
-    if (!user) {
+    if (!account) {
       toast({
         title: 'Error',
         description: 'You must be logged in to update your profile',
@@ -89,26 +103,22 @@ export const EditProfileForm: React.FC = () => {
       return;
     }
 
+    setIsPending(true);
+
     try {
       // Combine existing metadata with new values
-      const data = { ...metadata, ...values };
+      const data = { ...profile, ...values };
 
       // Clean up empty values
+      const cleanData: Record<string, any> = {};
       for (const key in data) {
-        if (data[key] === '') {
-          delete data[key];
+        if (data[key] !== '' && data[key] !== undefined) {
+          cleanData[key] = data[key];
         }
       }
 
-      // Publish the metadata event (kind 0)
-      await publishEvent({
-        kind: 0,
-        content: JSON.stringify(data),
-      });
-
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ['logins'] });
-      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+      // Use UpdateProfile action from applesauce-actions
+      await updateProfile(cleanData);
 
       toast({
         title: 'Success',
@@ -121,6 +131,8 @@ export const EditProfileForm: React.FC = () => {
         description: 'Failed to update your profile. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsPending(false);
     }
   };
 
