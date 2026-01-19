@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAccount } from '@/hooks/useAccount';
+import { useActiveAccount } from 'applesauce-react/hooks';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ const metadataSchema = z.object({
 });
 
 export const EditProfileForm: React.FC = () => {
-  const account = useAccount();
+  const activeAccount = useActiveAccount();
   const profile = useMyProfile();
   const { toast } = useToast();
 
@@ -70,7 +70,7 @@ export const EditProfileForm: React.FC = () => {
   const [isPending, setIsPending] = React.useState(false);
 
   const onSubmit = async (values: NostrMetadata) => {
-    if (!account) {
+    if (!activeAccount) {
       toast({
         title: 'Error',
         description: 'You must be logged in to update your profile',
@@ -139,10 +139,10 @@ export const EditProfileForm: React.FC = () => {
             <FormItem>
               <FormLabel>Bio</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Tell others about yourself" 
-                  className="resize-none" 
-                  {...field} 
+                <Textarea
+                  placeholder="Tell others about yourself"
+                  className="resize-none"
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -246,9 +246,9 @@ export const EditProfileForm: React.FC = () => {
           )}
         />
 
-        <Button 
-          type="submit" 
-          className="w-full md:w-auto" 
+        <Button
+          type="submit"
+          className="w-full md:w-auto"
           disabled={isPending}
         >
           {isPending && (

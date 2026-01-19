@@ -46,10 +46,10 @@ import { useMyUser } from "./useUser";
  * @example
  * ```tsx
  * import { useMyProfile } from '@/hooks/useProfile';
- * import { useAccount } from '@/hooks/useAccount';
+ * import { useActiveAccount } from 'applesauce-react/hooks';
  *
  * function ProfileSettings() {
- *   const account = useAccount();
+ *   const account = useActiveAccount();
  *   const profile = useMyProfile();
  *
  *   if (!account) return <LoginPrompt />;

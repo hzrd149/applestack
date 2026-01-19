@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useAccount } from "./useAccount";
+import { useActiveAccount } from "applesauce-react/hooks";
 import { publish } from "@/services/pool";
 import type { NostrEvent, EventTemplate } from "nostr-tools";
 
@@ -23,13 +23,13 @@ import type { NostrEvent, EventTemplate } from "nostr-tools";
  * ```
  */
 export function usePublish() {
-  const account = useAccount();
+  const activeAccount = useActiveAccount();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const publishEvent = useCallback(
     async (template: EventTemplate): Promise<NostrEvent> => {
-      if (!account) {
+      if (!activeAccount) {
         throw new Error("User is not logged in");
       }
 
@@ -51,7 +51,7 @@ export function usePublish() {
         };
 
         // Sign the event using the signer
-        const signedEvent = await account.signer.signEvent(eventTemplate);
+        const signedEvent = await activeAccount.signer.signEvent(eventTemplate);
 
         // Publish to relays
         await publish(signedEvent);
@@ -67,7 +67,7 @@ export function usePublish() {
         setIsPending(false);
       }
     },
-    [account]
+    [activeAccount]
   );
 
   return {

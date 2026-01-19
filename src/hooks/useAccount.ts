@@ -6,12 +6,15 @@ import { useActiveAccount } from "applesauce-react/hooks";
  * Returns account information including pubkey and signer,
  * or null if no account is logged in.
  *
+ * @deprecated Use `useActiveAccount` from `applesauce-react/hooks` directly instead.
+ * This hook is kept for backward compatibility but will be removed in a future version.
+ *
  * @example
  * ```tsx
- * import { useAccount } from '@/hooks/useAccount';
+ * import { useActiveAccount } from 'applesauce-react/hooks';
  *
  * function MyComponent() {
- *   const account = useAccount();
+ *   const account = useActiveAccount();
  *
  *   if (!account) {
  *     return <LoginPrompt />;
@@ -53,6 +56,6 @@ export function useAccount() {
  * ```
  */
 export function useIsLoggedIn() {
-  const account = useAccount();
-  return account !== null;
+  const account = useActiveAccount();
+  return account !== undefined;
 }

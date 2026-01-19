@@ -1,6 +1,6 @@
 /**
  * Examples Page - Demonstrates Applesauce Features
- * 
+ *
  * This page showcases the key features and patterns of Applesauce:
  * - Timeline feeds with Note casts
  * - Profile loading with ProfileModel
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TimelineFeed } from '@/components/examples/TimelineFeed';
 import { ProfileCard } from '@/components/examples/ProfileCard';
 import { LoginArea } from '@/components/auth/LoginArea';
-import { useAccount } from '@/hooks/useAccount';
+import { useActiveAccount } from 'applesauce-react/hooks';
 
 const Examples = () => {
   useSeoMeta({
@@ -21,7 +21,7 @@ const Examples = () => {
     description: 'Live examples demonstrating Applesauce features including timelines, profiles, and reactive data.',
   });
 
-  const account = useAccount();
+  const activeAccount = useActiveAccount();
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,10 +100,10 @@ const Examples = () => {
               </CardContent>
             </Card>
 
-            {account ? (
+            {activeAccount ? (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Your Profile</h3>
-                <ProfileCard pubkey={account.pubkey} />
+                <ProfileCard pubkey={activeAccount.pubkey} />
               </div>
             ) : (
               <Card className="border-dashed">

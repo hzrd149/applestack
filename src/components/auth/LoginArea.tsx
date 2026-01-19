@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button.tsx';
 import LoginDialog from './LoginDialog';
 import SignupDialog from './SignupDialog';
-import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
+import { useActiveAccount } from 'applesauce-react/hooks';
 import { AccountSwitcher } from './AccountSwitcher';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +14,7 @@ export interface LoginAreaProps {
 }
 
 export function LoginArea({ className }: LoginAreaProps) {
-  const { currentUser } = useLoggedInAccounts();
+  const activeAccount = useActiveAccount();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
 
@@ -25,7 +25,7 @@ export function LoginArea({ className }: LoginAreaProps) {
 
   return (
     <div className={cn("inline-flex items-center justify-center", className)}>
-      {currentUser ? (
+      {activeAccount ? (
         <AccountSwitcher onAddAccountClick={() => setLoginDialogOpen(true)} />
       ) : (
         <div className="flex gap-3 justify-center">

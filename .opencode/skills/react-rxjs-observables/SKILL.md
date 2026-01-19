@@ -1,5 +1,5 @@
 ---
-name: rxjs-observables
+name: react-rxjs-observables
 description: Use RxJS observables in React components with the use$ hook from applesauce-react
 license: MIT
 compatibility: opencode
@@ -17,7 +17,6 @@ This skill teaches you how to integrate RxJS observables into React components u
 
 - Show you how to subscribe to observables and automatically manage their lifecycle
 - Explain the factory function pattern with dependencies for reactive data
-- Demonstrate working with Applesauce casts (User, Note, Reaction, Zap) and their observable properties
 - Cover common patterns like chained observables, side effects, and conditional subscriptions
 - Help you avoid common mistakes with dependency arrays and re-subscriptions
 - Guide you through loading states, error handling, and performance optimization
@@ -56,7 +55,7 @@ use$<T>(factory: () => Observable<T> | undefined, deps: any[]): T | undefined
 
 ## Usage Patterns
 
-### Pattern 1: Factory Function (Recommended)
+### Pattern 1: Factory Function
 
 **This is the most common pattern.** Use when the observable depends on props, state, or context:
 
@@ -67,15 +66,15 @@ import { ProfileModel } from 'applesauce-core/models';
 
 function UserProfile({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
-  
+
   // Factory recreates observable when pubkey or store changes
   const profile = use$(
     () => store.model(ProfileModel, pubkey),
     [pubkey, store]
   );
-  
+
   if (!profile) return <Skeleton />;
-  
+
   return <div>{profile.name}</div>;
 }
 ```
@@ -109,7 +108,7 @@ function NoteCard({ note }: { note: Note }) {
   const author = use$(note.author.profile$);
   const reactions = use$(note.reactions$);
   const replyCount = use$(note.replies?.count$);
-  
+
   return (
     <div>
       <span>{author?.name ?? 'Anonymous'}</span>
@@ -118,34 +117,6 @@ function NoteCard({ note }: { note: Note }) {
       <span>{replyCount ?? 0} replies</span>
     </div>
   );
-}
-```
-
-### Pattern 4: Side Effects (Subscriptions)
-
-Use for relay subscriptions that don't return a value to render:
-
-```tsx
-import { use$ } from '@/hooks/use$';
-import { pool } from '@/services/pool';
-import { eventStore } from '@/services/stores';
-
-function EventLoader({ relays, filters }: { relays: string[]; filters: Filter[] }) {
-  // Subscribe to events - side effect only
-  use$(
-    () => {
-      if (relays.length === 0) return undefined;
-      
-      return pool.subscription(
-        relays,
-        filters,
-        { eventStore }
-      );
-    },
-    [relays.join(','), JSON.stringify(filters)]
-  );
-  
-  return null;
 }
 ```
 
@@ -160,7 +131,7 @@ import { map } from 'rxjs/operators';
 
 function ContactsWithRelays({ pubkey }: { pubkey: string }) {
   const store = useEventStore();
-  
+
   const contacts = use$(
     () => {
       const user = store.castUser(pubkey);
@@ -168,14 +139,14 @@ function ContactsWithRelays({ pubkey }: { pubkey: string }) {
     },
     [pubkey, store]
   );
-  
+
   // Combine each contact's outboxes
   const contactsWithOutboxes = use$(
     () => {
       if (!contacts) return undefined;
-      
+
       return combineLatest(
-        contacts.map(contact => 
+        contacts.map(contact =>
           contact.outboxes$.pipe(
             map(outboxes => ({ contact, outboxes }))
           )
@@ -184,7 +155,7 @@ function ContactsWithRelays({ pubkey }: { pubkey: string }) {
     },
     [contacts?.map(c => c.pubkey).join(',')]
   );
-  
+
   return <div>...</div>;
 }
 ```
@@ -245,12 +216,12 @@ const profile = use$(
 ```tsx
 function UserProfile({ pubkey }: { pubkey: string }) {
   const profile = use$(() => store.model(ProfileModel, pubkey), [pubkey]);
-  
+
   // Always handle undefined
   if (!profile) {
     return <Skeleton />;
   }
-  
+
   return <div>{profile.name}</div>;
 }
 ```
@@ -260,87 +231,6 @@ function UserProfile({ pubkey }: { pubkey: string }) {
 ```tsx
 const theme$ = new BehaviorSubject('light');
 const theme = use$(theme$);  // Never undefined
-```
-
-## Common Applesauce Patterns
-
-### User Profiles
-
-```tsx
-function UserCard({ pubkey }: { pubkey: string }) {
-  const store = useEventStore();
-  
-  const user = useMemo(() => store.castUser(pubkey), [pubkey, store]);
-  const profile = use$(user.profile$);
-  const contacts = use$(user.contacts$);
-  const outboxes = use$(user.outboxes$);
-  
-  return (
-    <div>
-      <img src={profile?.picture} />
-      <h3>{profile?.name}</h3>
-      <p>Following: {contacts?.length ?? 0}</p>
-      <p>Relays: {outboxes?.length ?? 0}</p>
-    </div>
-  );
-}
-```
-
-### Timelines
-
-```tsx
-function Feed({ filters }: { filters: Filter[] }) {
-  const store = useEventStore();
-  
-  const events = use$(
-    () => store.timeline(filters),
-    [JSON.stringify(filters)]
-  );
-  
-  if (!events) return <Loading />;
-  
-  return events.map(event => <NoteCard key={event.id} note={event} />);
-}
-```
-
-### Reactions and Zaps
-
-```tsx
-function NoteStats({ note }: { note: Note }) {
-  const reactions = use$(note.reactions$);
-  const zaps = use$(note.zaps$);
-  
-  const totalSats = zaps?.reduce((sum, zap) => sum + zap.amount, 0) ?? 0;
-  
-  return (
-    <div>
-      <span>{reactions?.length ?? 0} reactions</span>
-      <span>{totalSats} sats</span>
-    </div>
-  );
-}
-```
-
-### Comments Model
-
-```tsx
-function CommentSection({ eventId }: { eventId: string }) {
-  const store = useEventStore();
-  
-  const comments = use$(
-    () => store.model(CommentsModel, eventId),
-    [eventId, store]
-  );
-  
-  return (
-    <div>
-      <h4>{comments?.count ?? 0} comments</h4>
-      {comments?.comments.map(comment => (
-        <Comment key={comment.id} comment={comment} />
-      ))}
-    </div>
-  );
-}
 ```
 
 ## Common Mistakes to Avoid
@@ -438,38 +328,6 @@ function App() {
 }
 ```
 
-## Creating Custom Hooks
-
-Wrap `use$` for reusable patterns:
-
-```tsx
-// Custom profile hook
-function useProfile(pubkey: string) {
-  const store = useEventStore();
-  return use$(
-    () => store.model(ProfileModel, pubkey),
-    [pubkey, store]
-  );
-}
-
-// Custom timeline hook
-function useTimeline(filters: Filter[]) {
-  const store = useEventStore();
-  return use$(
-    () => store.timeline(filters),
-    [JSON.stringify(filters), store]
-  );
-}
-
-// Usage is cleaner
-function MyComponent({ pubkey }: { pubkey: string }) {
-  const profile = useProfile(pubkey);
-  const notes = useTimeline([{ kinds: [1], authors: [pubkey] }]);
-  
-  return <div>...</div>;
-}
-```
-
 ## Quick Reference
 
 | Pattern | When to Use | Example |
@@ -489,5 +347,3 @@ function MyComponent({ pubkey }: { pubkey: string }) {
 4. **Always** handle `undefined` return values (except for BehaviorSubjects)
 5. **Never** call `use$` conditionally
 6. **Never** pass array/object references directly in dependencies
-
-For more detailed examples and patterns, see `/docs/RXJS_OBSERVABLES_IN_REACT.md`.
