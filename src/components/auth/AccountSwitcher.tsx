@@ -16,7 +16,11 @@ import {
 import { useProfile } from "@/hooks/useProfile";
 import { genUserName } from "@/lib/genUserName";
 import type { IAccount } from "applesauce-accounts";
-import { use$, useAccountManager, useActiveAccount } from "applesauce-react/hooks";
+import {
+  use$,
+  useAccountManager,
+  useActiveAccount,
+} from "applesauce-react/hooks";
 import { ChevronDown, LogOut, UserIcon, UserPlus } from "lucide-react";
 
 interface AccountSwitcherProps {
