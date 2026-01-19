@@ -549,7 +549,7 @@ import { useTimeline } from '@/hooks/useTimeline';
 
 function Feed() {
   const notes = useTimeline(
-    ['wss://relay.damus.io', 'wss://relay.nostr.band'],
+    ['wss://relay.damus.io'],
     [{ kinds: [1], limit: 50 }]
   );
 
@@ -1120,53 +1120,6 @@ function EncryptedMessage() {
   };
 
   return <div>...</div>;
-}
-```
-
-### Direct Messaging
-
-The project includes a complete direct messaging system with NIP-04 and NIP-17 support. See **`docs/NOSTR_DIRECT_MESSAGES.md`** for complete implementation guide.
-
-## App Configuration
-
-The project includes an `AppProvider` that manages global application state including theme and NIP-65 relay configuration. The default configuration includes:
-
-```typescript
-const defaultConfig: AppConfig = {
-  theme: "light",
-  relayMetadata: {
-    relays: [
-      { url: 'wss://relay.ditto.pub', read: true, write: true },
-      { url: 'wss://relay.nostr.band', read: true, write: true },
-      { url: 'wss://relay.damus.io', read: true, write: true },
-    ],
-    updatedAt: 0,
-  },
-};
-```
-
-The app uses NIP-65 compatible relay management with automatic sync when users log in. Local storage persists user preferences and relay configurations.
-
-### Relay Management
-
-The project includes a complete NIP-65 relay management system:
-
-- **RelayListManager**: Component for managing multiple relays with read/write permissions
-- **NostrSync**: Automatically syncs user's NIP-65 relay list when they log in
-- **Automatic Publishing**: Changes to relay configuration are automatically published as NIP-65 events when the user is logged in
-
-Use the `RelayListManager` component to provide relay management interfaces:
-
-```tsx
-import { RelayListManager } from '@/components/RelayListManager';
-
-function SettingsPage() {
-  return (
-    <div>
-      <h2>Relay Settings</h2>
-      <RelayListManager />
-    </div>
-  );
 }
 ```
 

@@ -2,7 +2,7 @@ import { RelayPool } from "applesauce-relay";
 import type { NostrEvent } from "nostr-tools";
 import { firstValueFrom } from "rxjs";
 import { eventStore } from "./stores";
-import { defaultRelays } from "./state";
+import { extraRelays } from "./settings";
 
 /**
  * Global RelayPool instance for all relay connections.
@@ -27,7 +27,7 @@ export async function publish(
   eventStore.add(event);
 
   // Use provided relays or default
-  if (!relays) relays = defaultRelays.getValue();
+  if (!relays) relays = extraRelays.getValue();
 
   // Publish to relays
   await firstValueFrom(pool.event(relays, event));

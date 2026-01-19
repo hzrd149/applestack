@@ -6,7 +6,7 @@ import {
 import { pool } from "./pool";
 import { eventStore } from "./stores";
 import { cacheRequest } from "./cache";
-import { lookupRelays, defaultRelays } from "./state";
+import { lookupRelays, extraRelays } from "./settings";
 
 /**
  * Create unified event loader for the EventStore.
@@ -21,7 +21,7 @@ import { lookupRelays, defaultRelays } from "./state";
 createEventLoaderForStore(eventStore, pool, {
   cacheRequest,
   lookupRelays: lookupRelays.getValue(),
-  extraRelays: defaultRelays,
+  extraRelays: extraRelays,
   followRelayHints: true,
   bufferTime: 1000, // Batch requests within 1 second
 });
@@ -32,7 +32,7 @@ createEventLoaderForStore(eventStore, pool, {
  */
 export const addressLoader = createAddressLoader(pool, {
   cacheRequest,
-  extraRelays: defaultRelays,
+  extraRelays: extraRelays,
   eventStore,
   lookupRelays: lookupRelays.getValue(),
 });
