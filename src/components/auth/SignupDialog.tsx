@@ -1,8 +1,8 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Download, Upload, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from '@/hooks/useToast';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { usePublish } from '@/hooks/usePublish';
-import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 interface SignupDialogProps {
@@ -29,8 +28,6 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   });
   const login = useLoginActions();
   const { publishEvent, isPending: isPublishing } = usePublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
-  const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate a proper nsec key using nostr-tools
   const generateKey = () => {
@@ -73,49 +70,6 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       toast({
         title: 'Download failed',
         description: 'Could not download the key file. Please copy it manually.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset file input
-    e.target.value = '';
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please select an image file for your avatar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Avatar image must be smaller than 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const tags = await uploadFile(file);
-      // Get the URL from the first tag
-      const url = tags[0]?.[1];
-      if (url) {
-        setProfileData(prev => ({ ...prev, picture: url }));
-      }
-    } catch {
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload avatar. Please try again.',
         variant: 'destructive',
       });
     }
@@ -287,39 +241,15 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
                 <div className='space-y-2'>
                   <label htmlFor='profile-picture' className='text-sm font-medium'>
-                    Avatar
+                    Avatar URL
                   </label>
-                  <div className='flex gap-2'>
-                    <Input
-                      id='profile-picture'
-                      value={profileData.picture}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, picture: e.target.value }))}
-                      placeholder='https://example.com/your-avatar.jpg'
-                      className='flex-1'
-                      disabled={isPublishing}
-                    />
-                    <input
-                      type='file'
-                      accept='image/*'
-                      className='hidden'
-                      ref={avatarFileInputRef}
-                      onChange={handleAvatarUpload}
-                    />
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='icon'
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      disabled={isUploading || isPublishing}
-                      title='Upload avatar image'
-                    >
-                      {isUploading ? (
-                        <div className='w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin' />
-                      ) : (
-                        <Upload className='w-4 h-4' />
-                      )}
-                    </Button>
-                  </div>
+                  <Input
+                    id='profile-picture'
+                    value={profileData.picture}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, picture: e.target.value }))}
+                    placeholder='https://example.com/your-avatar.jpg'
+                    disabled={isPublishing}
+                  />
                 </div>
               </div>
 
@@ -328,7 +258,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                 <Button
                   className='w-full'
                   onClick={() => finishSignup(false)}
-                  disabled={isPublishing || isUploading}
+                  disabled={isPublishing}
                 >
                   {isPublishing ? (
                     <>
@@ -344,7 +274,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                   variant='outline'
                   className='w-full'
                   onClick={() => finishSignup(true)}
-                  disabled={isPublishing || isUploading}
+                  disabled={isPublishing}
                 >
                   {isPublishing ? (
                     'Setting up account...'

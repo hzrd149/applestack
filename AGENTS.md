@@ -34,7 +34,6 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
   - `useLoggedInAccounts`: Manage multiple accounts
   - `useLoginActions`: Authentication actions (extension, nsec, bunker)
   - `useIsMobile`: Responsive design helper
-  - `useUploadFile`: Upload files via Blossom servers
 - `/src/blueprints/`: Custom event blueprints for standardized event creation
 - `/src/operations/`: Custom event operations for composable event building
 - `/src/pages/`: Page components used by React Router (Index, NotFound)
@@ -379,37 +378,53 @@ function MyComponent() {
 **Related Hook:**
 - `useIsLoggedIn()`: Returns boolean instead of account object
 
-#### `useProfile` - Fetch User Profiles
+#### `useUser` - Get User Cast (Recommended)
 
-The `useProfile` hook fetches and subscribes to user profile data using ProfileModel.
+The `useUser` hook creates a User cast that provides reactive access to profile, contacts, and mailboxes.
 
 ```tsx
-import { useProfile } from '@/hooks/useProfile';
+import { useUser } from '@/hooks/useUser';
+import { use$ } from '@/hooks/use$';
 
 function UserCard({ pubkey }: { pubkey: string }) {
-  const profile = useProfile(pubkey);
+  const user = useUser(pubkey);
+  const profile = use$(user?.profile$);
+  const contacts = use$(user?.contacts$);
+  const outboxes = use$(user?.outboxes$);
 
   return (
     <div>
       <img src={profile?.picture} alt={profile?.name} />
-      <h3>{profile?.name ?? 'Anonymous'}</h3>
+      <h3>{profile?.displayName ?? profile?.name ?? 'Anonymous'}</h3>
       <p>{profile?.about}</p>
+      <p>Following {contacts?.length ?? 0} users</p>
+      <p>Publishing to {outboxes?.length ?? 0} relays</p>
     </div>
   );
 }
 ```
 
-**Profile Fields:**
+**User Cast Properties:**
+- `profile$`: Observable<Profile> - User metadata (kind 0)
+- `contacts$`: Observable<User[]> - Followed users (kind 3)
+- `followers$`: Observable<User[]> - Users following this user
+- `inboxes$`: Observable<string[]> - NIP-65 read relays
+- `outboxes$`: Observable<string[]> - NIP-65 write relays
+- `mutes$`: Observable<User[]> - Muted users
+
+**Profile Fields (from Profile observable):**
 - `name`: Display name
-- `display_name`: Alternative display name
+- `displayName`: Alternative display name
 - `picture`: Avatar URL
 - `banner`: Banner image URL
 - `about`: Bio/description
-- `nip05`: Nostr address
+- `nip05Verified`: Verified Nostr address
 - `lud06`/`lud16`: Lightning addresses
 - `website`: Personal website
 
-**Related Hook:**
+**Related Hooks:**
+- `useMyUser()`: Get current user's own User cast
+- `useProfile(pubkey)`: Shortcut to get just the profile (uses User cast internally)
 - `useMyProfile()`: Get current user's own profile
 
 #### `useTimeline` - Subscribe to Event Timelines
@@ -985,51 +1000,7 @@ accountManager.removeAccount(pubkey);
 - `PrivateKeyAccount`: Local private key (nsec)
 - `NostrConnectAccount`: NIP-46 remote signer (bunker)
 
-### File Uploads
 
-Use the `useUploadFile` hook to upload files to Blossom servers.
-
-```tsx
-import { useUploadFile } from '@/hooks/useUploadFile';
-
-function ImageUpload() {
-  const { mutateAsync: uploadFile, isPending } = useUploadFile();
-
-  const handleUpload = async (file: File) => {
-    try {
-      const tags = await uploadFile(file);
-      const url = tags[0][1]; // First tag contains URL
-      console.log('Uploaded to:', url);
-    } catch (error) {
-      console.error('Upload failed:', error);
-    }
-  };
-
-  return (
-    <input
-      type="file"
-      onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-      disabled={isPending}
-    />
-  );
-}
-```
-
-**Features:**
-- Uploads to Blossom servers (primal.net, satellite.earth)
-- Returns NIP-94 compatible tags
-- Automatic authentication with user's signer
-- Falls back to next server on failure
-
-**Returned Tags:**
-```typescript
-[
-  ["url", "https://cdn.satellite.earth/..."],
-  ["m", "image/jpeg"],
-  ["x", "sha256hash..."],
-  ["size", "123456"]
-]
-```
 
 ### NIP-19 Identifiers
 

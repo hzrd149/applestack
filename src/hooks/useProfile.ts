@@ -1,11 +1,10 @@
 import { use$ } from "./use$";
-import { useEventStore } from "./useEventStore";
-import { ProfileModel } from "applesauce-core/models";
+import { useUser } from "./useUser";
 import type { ProfileContent } from "applesauce-core/helpers";
 
 /**
  * Get a user's profile by their pubkey.
- * Automatically subscribes to profile updates.
+ * Automatically subscribes to profile updates via User cast.
  *
  * @param pubkey - The user's public key (hex format)
  * @returns The user's profile metadata, or undefined if not yet loaded
@@ -27,19 +26,18 @@ import type { ProfileContent } from "applesauce-core/helpers";
  * }
  * ```
  */
-export function useProfile(pubkey: string): ProfileContent | undefined {
-  const store = useEventStore();
+export function useProfile(pubkey: string | undefined): ProfileContent | undefined {
+  const user = useUser(pubkey);
 
   const profile = use$(
-    () => store.model(ProfileModel, pubkey),
-    [pubkey, store]
+    () => user?.profile$,
+    [user?.pubkey]
   );
 
   return profile;
 }
 
-// Re-export for convenience
-import { useActiveAccount } from "applesauce-react/hooks";
+import { useMyUser } from "./useUser";
 
 /**
  * Get the current user's own profile.
@@ -66,14 +64,12 @@ import { useActiveAccount } from "applesauce-react/hooks";
  * ```
  */
 export function useMyProfile(): ProfileContent | undefined {
-  const account = useActiveAccount();
-  const pubkey = account?.pubkey;
+  const user = useMyUser();
 
-  const profile = useProfile(pubkey || '');
-
-  if (!account) {
-    return undefined;
-  }
+  const profile = use$(
+    () => user?.profile$,
+    [user?.pubkey]
+  );
 
   return profile;
 }

@@ -1,8 +1,9 @@
 /**
  * Example Profile Card Component  
- * Demonstrates using useProfile hook with ProfileModel
+ * Demonstrates using User cast system with reactive properties
  */
-import { useProfile } from '@/hooks/useProfile';
+import { useUser } from '@/hooks/useUser';
+import { use$ } from '@/hooks/use$';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,7 +15,9 @@ interface ProfileCardProps {
 }
 
 export function ProfileCard({ pubkey }: ProfileCardProps) {
-  const profile = useProfile(pubkey);
+  const user = useUser(pubkey);
+  const profile = use$(user?.profile$);
+  const follows = use$(user?.contacts$);
   const npub = nip19.npubEncode(pubkey);
 
   if (!profile) {
@@ -23,7 +26,7 @@ export function ProfileCard({ pubkey }: ProfileCardProps) {
 
   return (
     <Card>
-      {profile.banner && (
+      {profile?.banner && (
         <div className="h-32 overflow-hidden">
           <img 
             src={profile.banner} 
@@ -36,23 +39,22 @@ export function ProfileCard({ pubkey }: ProfileCardProps) {
       <CardHeader>
         <div className="flex items-start gap-4">
           <Avatar className="h-20 w-20 border-4 border-background -mt-10">
-            <AvatarImage src={profile.picture} />
+            <AvatarImage src={profile?.picture} />
             <AvatarFallback className="text-2xl">
-              {profile.name?.charAt(0) || profile.display_name?.charAt(0) || '?'}
+              {profile?.name?.charAt(0) || profile?.displayName?.charAt(0) || '?'}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 mt-2">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold">
-                {profile.display_name || profile.name || 'Anonymous'}
+                {profile?.displayName || profile?.name || 'Anonymous'}
               </h2>
-              {profile.bot && <Badge variant="secondary">Bot</Badge>}
             </div>
             
-            {profile.nip05 && (
+            {profile?.nip05Verified && (
               <p className="text-sm text-muted-foreground">
-                ✓ {profile.nip05}
+                ✓ {profile.nip05Verified}
               </p>
             )}
 
@@ -64,11 +66,17 @@ export function ProfileCard({ pubkey }: ProfileCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {profile.about && (
+        {profile?.about && (
           <p className="text-sm">{profile.about}</p>
         )}
 
-        {profile.website && (
+        {follows && follows.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            Following {follows.length} {follows.length === 1 ? 'person' : 'people'}
+          </div>
+        )}
+
+        {profile?.website && (
           <a 
             href={profile.website}
             target="_blank"
@@ -79,7 +87,7 @@ export function ProfileCard({ pubkey }: ProfileCardProps) {
           </a>
         )}
 
-        {(profile.lud16 || profile.lud06) && (
+        {(profile?.lud16 || profile?.lud06) && (
           <div className="flex items-center gap-2 text-sm">
             <span>⚡</span>
             <code className="text-xs bg-muted px-2 py-1 rounded">
