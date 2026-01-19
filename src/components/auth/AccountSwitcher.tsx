@@ -1,7 +1,11 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { ChevronDown, LogOut, UserIcon, UserPlus } from "lucide-react";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,16 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar.tsx";
-import { useActiveAccount, useAccounts } from "applesauce-react/hooks";
 import { useProfile } from "@/hooks/useProfile";
-import { accounts } from "@/services/accounts";
 import { genUserName } from "@/lib/genUserName";
 import type { IAccount } from "applesauce-accounts";
+import { use$, useAccountManager, useActiveAccount } from "applesauce-react/hooks";
+import { ChevronDown, LogOut, UserIcon, UserPlus } from "lucide-react";
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
@@ -55,7 +54,8 @@ function AccountItem({ account, isActive, onSelect }: AccountItemProps) {
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const activeAccount = useActiveAccount();
-  const accounts = useAccounts();
+  const accountManager = useAccountManager();
+  const accounts = use$(accountManager.accounts$);
   const activeProfile = useProfile(activeAccount?.pubkey);
 
   if (!activeAccount) return null;
@@ -66,11 +66,11 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const displayName = activeProfile?.name ?? genUserName(activeAccount.pubkey);
 
   const handleSetActive = (pubkey: string) => {
-    accounts.setActive(pubkey);
+    accountManager.setActive(pubkey);
   };
 
   const handleRemoveAccount = (pubkey: string) => {
-    accounts.removeAccount(pubkey);
+    accountManager.removeAccount(pubkey);
   };
 
   return (
