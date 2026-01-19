@@ -4,9 +4,15 @@
 import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
-import { EventStoreProvider, AccountsProvider } from 'applesauce-react/providers';
+import { 
+  EventStoreProvider, 
+  AccountsProvider,
+  ActionsProvider,
+  FactoryProvider,
+} from 'applesauce-react/providers';
 import { eventStore } from '@/services/stores';
 import { accountManager } from '@/services/accounts';
+import { runner, factory } from '@/services/actions';
 import '@/services/loaders'; // Initialize loaders
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,12 +29,16 @@ export function App() {
     <UnheadProvider head={head}>
       <EventStoreProvider eventStore={eventStore}>
         <AccountsProvider manager={accountManager}>
-          <TooltipProvider>
-            <Toaster />
-            <Suspense>
-              <AppRouter />
-            </Suspense>
-          </TooltipProvider>
+          <ActionsProvider runner={runner}>
+            <FactoryProvider factory={factory}>
+              <TooltipProvider>
+                <Toaster />
+                <Suspense>
+                  <AppRouter />
+                </Suspense>
+              </TooltipProvider>
+            </FactoryProvider>
+          </ActionsProvider>
         </AccountsProvider>
       </EventStoreProvider>
     </UnheadProvider>
