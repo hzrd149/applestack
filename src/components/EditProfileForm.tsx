@@ -13,15 +13,6 @@ import { Loader2 } from "lucide-react";
 import type { ProfileContent } from "applesauce-core/helpers";
 import { z } from "zod";
 
-// Zod schema for birthday
-const birthdaySchema = z
-  .object({
-    year: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
-    month: z.number().int().min(1).max(12).optional(),
-    day: z.number().int().min(1).max(31).optional(),
-  })
-  .optional();
-
 // Validation schema for profile metadata
 const metadataSchema = z.object({
   name: z.string().optional(),
@@ -59,7 +50,6 @@ const metadataSchema = z.object({
     .optional(),
   nip05: z.string().optional(),
   bot: z.boolean().optional(),
-  birthday: birthdaySchema,
   languages: z.array(z.string()).optional(),
 });
 
@@ -84,7 +74,6 @@ export const EditProfileForm: React.FC = () => {
         lud06: "",
         nip05: "",
         bot: false,
-        birthday: undefined,
         languages: [],
       };
     }
@@ -100,7 +89,6 @@ export const EditProfileForm: React.FC = () => {
       lud06: profile.lud06 || "",
       nip05: profile.nip05 || "",
       bot: profile.bot || false,
-      birthday: profile.birthday,
       languages: profile.languages || [],
     };
   }, [profile]);
@@ -152,7 +140,6 @@ export const EditProfileForm: React.FC = () => {
       if (data.lud06) profileUpdate.lud06 = data.lud06;
       if (data.nip05) profileUpdate.nip05 = data.nip05;
       if (data.bot !== undefined) profileUpdate.bot = data.bot;
-      if (data.birthday) profileUpdate.birthday = data.birthday;
       if (data.languages && data.languages.length > 0)
         profileUpdate.languages = data.languages;
 
@@ -494,74 +481,6 @@ export const EditProfileForm: React.FC = () => {
                     />
                   )}
                 />
-              </div>
-
-              <div>
-                <label className="text-muted-foreground text-sm mb-1 block">
-                  Birthday
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Controller
-                    name="birthday.year"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const year = e.target.value
-                            ? parseInt(e.target.value, 10)
-                            : undefined;
-                          field.onChange(year);
-                        }}
-                        placeholder="Year"
-                        min="1900"
-                        max={new Date().getFullYear()}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="birthday.month"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const month = e.target.value
-                            ? parseInt(e.target.value, 10)
-                            : undefined;
-                          field.onChange(month);
-                        }}
-                        placeholder="Month"
-                        min="1"
-                        max="12"
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="birthday.day"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const day = e.target.value
-                            ? parseInt(e.target.value, 10)
-                            : undefined;
-                          field.onChange(day);
-                        }}
-                        placeholder="Day"
-                        min="1"
-                        max="31"
-                      />
-                    )}
-                  />
-                </div>
               </div>
             </div>
           </div>
