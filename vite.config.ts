@@ -5,6 +5,18 @@ import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
+  build: {
+    sourcemap: true,
+    target: ["es2022"],
+  },
+  esbuild: {
+    target: ["es2022"],
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2022",
+    },
+  },
   server: {
     host: "::",
     port: 8080,

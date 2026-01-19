@@ -12,7 +12,6 @@ import type { NostrEvent } from "nostr-tools";
 import { verifyEvent } from "nostr-tools";
 import { cacheRequest, saveEvents } from "./cache";
 import { extraRelays, lookupRelays } from "./settings";
-import "window.nostrdb.js";
 
 /**
  * Global EventStore instance for all Nostr events.
