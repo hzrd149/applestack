@@ -1,40 +1,41 @@
-# MKStack
+# Applestack
 
-**The Complete Framework for Building Nostr Clients with AI**
+**Production-Ready Nostr Client Framework**
 
-MKStack is an AI-powered framework for building Nostr applications with React 18.x, TailwindCSS 3.x, Vite, shadcn/ui, and Nostrify. Build powerful Nostr applications with AI-first development - from social feeds to private messaging, MKStack provides everything you need to create decentralized apps on the Nostr protocol.
+Applestack is a modern framework for building Nostr applications with React 18.x, TailwindCSS 3.x, Vite, shadcn/ui, and Applesauce. Build powerful, reactive Nostr applications - from social feeds to private messaging, Applestack provides everything you need to create decentralized apps on the Nostr protocol.
 
 ## 🚀 Quick Start
 
-Build your Nostr app in 3 simple steps:
+Get started with Applestack:
 
-### 1. Install & Create
+### 1. Clone & Install
 ```bash
-npm install -g @getstacks/stacks
-stacks mkstack
+git clone https://github.com/yourusername/applestack.git
+cd applestack
+npm install
 ```
 
-### 2. Build with AI
+### 2. Start Development
 ```bash
-stacks agent
-# Tell Dork AI what you want: "Build a group chat application"
+npm run dev
+# Visit http://localhost:5173
 ```
 
-### 3. Deploy Instantly
+### 3. Build for Production
 ```bash
-npm run deploy
-# ✅ App deployed to NostrDeploy.com!
+npm run build
+npm run preview
 ```
 
-## ✨ What Makes MKStack Special
+## ✨ What Makes Applestack Special
 
-- **🤖 AI-First Development**: Build complete Nostr apps with just one prompt using Dork AI agent
-- **⚡ 8 Minutes Average**: From idea to deployed application in minutes, not months
-- **🔗 50+ NIPs Supported**: Comprehensive Nostr protocol implementation
+- **⚡ Reactive Architecture**: Built on Applesauce v5 with RxJS for real-time updates
 - **🎨 Beautiful UI**: 48+ shadcn/ui components with light/dark theme support
 - **🔐 Built-in Security**: NIP-07 browser signing, NIP-44 encryption, event validation
-- **💰 Payments Ready**: Lightning zaps (NIP-57), Cashu wallets (NIP-60), Wallet Connect (NIP-47)
-- **📱 Production Ready**: TypeScript, testing, deployment, and responsive design included
+- **💰 Payments Ready**: Lightning zaps (NIP-57) with built-in wallet support
+- **📱 Production Ready**: TypeScript, testing, and responsive design included
+- **🔄 Smart Caching**: EventStore with efficient event management and loaders
+- **🧩 Type-Safe Casts**: Note, User, Reaction, and Zap casts with computed properties
 
 ## 🛠 Technology Stack
 
@@ -42,104 +43,87 @@ npm run deploy
 - **TailwindCSS 3.x**: Utility-first CSS framework for styling
 - **Vite**: Fast build tool and development server
 - **shadcn/ui**: 48+ unstyled, accessible UI components built with Radix UI
-- **Nostrify**: Nostr protocol framework for Deno and web
+- **Applesauce v5**: Production-ready Nostr SDK with reactive architecture
+- **RxJS**: Reactive programming with observables for real-time state management
 - **React Router**: Client-side routing with BrowserRouter
-- **TanStack Query**: Data fetching, caching, and state management
 - **TypeScript**: Type-safe JavaScript development
 
-## 🎯 Real-World Examples
+## 🎯 Key Features
 
-### Built with One Prompt
+Applestack provides a complete foundation for building Nostr applications with:
 
-Each of these applications was created with just a single prompt to Dork AI:
-
-- **Group Chat Application**: `"Build me a group chat application"`
-  - [Live Demo](https://groupchat-74z9j26wq-mks-projects-1f1254c4.vercel.app/)
-
-- **Decentralized Goodreads**: `"Build a decentralized goodreads alternative. Use OpenLibrary API for book data."`
-  - [Live Demo](https://bookstr123-87phkwjcy-mks-projects-1f1254c4.vercel.app/)
-
-- **Chess Game**: `"Build a chess game with NIP 64"`
-  - [Live Demo](https://chess-l0d7ms7m3-mks-projects-1f1254c4.vercel.app/chess)
-
-### Production Apps
-
-Real Nostr applications built using MKStack:
-
-- **[Chorus](https://chorus.community/)**: Facebook-style groups on Nostr with built-in eCash wallet
-- **[Blobbi](https://www.blobbi.pet/)**: Digital pet companions that live forever on the decentralized web
-- **[Treasures](https://treasures.to/)**: Decentralized geocaching adventure powered by Nostr
-
-[Browse more apps made with MKStack →](https://nostrhub.io/apps/t/mkstack/)
+- **Reactive Data Flow**: RxJS observables for real-time event updates
+- **Smart Event Management**: EventStore with efficient caching and queries
+- **Type-Safe Casts**: Note, User, Reaction, Zap with computed properties
+- **Powerful Models**: ProfileModel, ThreadModel, CommentsModel for complex data
+- **Multi-Relay Support**: RelayPool with automatic connection management
+- **Built-in Loaders**: Infinite scroll, event loading, and pagination support
 
 ## 🔧 Core Features
 
 ### Authentication & Users
 - `LoginArea` component with account switching
-- `useCurrentUser` hook for authentication state
-- `useAuthor` hook for fetching user profiles
+- `useAccount` hook for authentication state
+- `useUser` and `useProfile` hooks for user data
 - NIP-07 browser signing support
-- Multi-account management
+- Multi-account management with extension, nsec, and bunker support
 
 ### Nostr Protocol Support
-- **Social Features**: User profiles (NIP-01), follow lists (NIP-02), reactions (NIP-25), reposts (NIP-18)
-- **Messaging**: Private DMs (NIP-17), public chat (NIP-28), group chat (NIP-29), encryption (NIP-44)
-- **Payments**: Lightning zaps (NIP-57), Cashu wallets (NIP-60), Nutzaps (NIP-61), Wallet Connect (NIP-47)
-- **Content**: Long-form articles (NIP-23), file metadata (NIP-94), live events (NIP-53), calendars (NIP-52)
+- **Social Features**: User profiles (NIP-01), follow lists (NIP-02), reactions (NIP-25)
+- **Messaging**: Private DMs (NIP-04, NIP-17) with encryption (NIP-44)
+- **Payments**: Lightning zaps (NIP-57) with wallet integration
+- **Content**: Long-form articles (NIP-23), calendars (NIP-52), and custom kinds
 
-### Data Management
-- `useNostr` hook for querying and publishing
-- `useNostrPublish` hook with automatic client tagging
-- Event validation and filtering
-- Infinite scroll with TanStack Query
-- Multi-relay support
+### Data Management with Applesauce
+- `useTimeline` hook for reactive event feeds
+- `usePublish` hook for event publishing with automatic client tagging
+- `use$` hook for subscribing to RxJS observables
+- `useEventStore` for accessing the global event store
+- Event validation and filtering with type-safe casts
+- Built-in loaders for infinite scroll and pagination
 
 ### UI Components
 - 48+ shadcn/ui components (buttons, forms, dialogs, etc.)
-- `NoteContent` component for rich text rendering
-- `EditProfileForm` for profile management
-- `RelaySelector` for relay switching
-- `CommentsSection` for threaded discussions
-- Light/dark theme system
-
-### Media & Files
-- `useUploadFile` hook with Blossom server integration
-- NIP-94 compatible file metadata
-- Image and video support
-- File attachment to events
+- Authentication components (LoginDialog, SignupDialog, AccountSwitcher)
+- NIP-65 relay management with RelayListManager
+- Light/dark theme system with `useTheme` hook
+- Toast notifications with `useToast`
+- Responsive design with `useIsMobile` hook
 
 ### Advanced Features
 - NIP-19 identifier routing (`npub1`, `note1`, `nevent1`, `naddr1`)
-- Cryptographic operations (encryption/decryption)
+- Cryptographic operations (NIP-44 encryption/decryption)
 - Lightning payments and zaps
-- Real-time event subscriptions
+- Real-time event subscriptions with RxJS
+- ThreadModel and CommentsModel for discussions
 - Responsive design with mobile support
 
-## 🤖 AI Development with Dork
+## 📖 Core Hooks
 
-MKStack includes Dork, a built-in AI agent that understands your codebase and Nostr protocols:
+Applestack provides powerful React hooks built on Applesauce:
 
-### Supported AI Providers
+### Event Management
+- **`use$`**: Subscribe to RxJS observables with automatic cleanup
+- **`useEventStore`**: Access the global EventStore instance
+- **`useTimeline`**: Subscribe to live event timelines from relays
+- **`useLocalTimeline`**: Query events from local EventStore only
 
-Configure your AI provider with `stacks configure`:
+### User & Authentication
+- **`useAccount`**: Get the currently logged-in account
+- **`useUser`**: Create a User cast with reactive profile and contacts
+- **`useProfile`**: Get user profile metadata (uses User cast internally)
+- **`useMyUser`**: Get current user's User cast
+- **`useLoginActions`**: Access login methods (extension, nsec, bunker)
 
-- **OpenRouter** ([openrouter.ai](https://openrouter.ai/)): Enter your API key from settings
-- **Routstr** ([routstr.com](https://www.routstr.com/)): Use Cashu tokens for payment
-- **PayPerQ** ([ppq.ai](https://ppq.ai/)): OpenAI-compatible API
+### Publishing & Actions
+- **`usePublish`**: Publish events with automatic signing
+- **`useAction`**: Execute pre-built actions (CreateNote, FollowUser, etc.)
 
-### How Dork Works
-
-- **Context-Aware**: Understands your entire codebase and project structure
-- **Nostr Expert**: Built-in knowledge of 50+ NIPs and best practices
-- **Instant Implementation**: Makes changes directly to your code following React/TypeScript best practices
-
-Example prompts:
-```bash
-"Add user profiles with avatars and bio"
-"Implement NIP-17 private messaging"
-"Add a dark mode toggle"
-"Create a marketplace with NIP-15"
-```
+### Utilities
+- **`useTheme`**: Theme management (light/dark mode)
+- **`useToast`**: Toast notifications
+- **`useIsMobile`**: Responsive design helper
+- **`useLocalStorage`**: Persistent local storage
 
 ## 📁 Project Structure
 
@@ -147,19 +131,27 @@ Example prompts:
 src/
 ├── components/           # UI components
 │   ├── ui/              # shadcn/ui components (48+ available)
-│   ├── auth/            # Authentication components
-│   └── comments/        # Comment system components
+│   └── auth/            # Authentication components (LoginArea, LoginDialog, etc.)
+├── services/            # Applesauce core services
+│   ├── stores.ts        # EventStore instance
+│   ├── pool.ts          # RelayPool instance
+│   ├── accounts.ts      # Account manager
+│   ├── loaders.ts       # Event loaders
+│   └── actions.ts       # Pre-built actions
 ├── hooks/               # Custom React hooks
-│   ├── useNostr         # Core Nostr integration
-│   ├── useAuthor        # User profile data
-│   ├── useCurrentUser   # Authentication state
-│   ├── useNostrPublish  # Event publishing
-│   ├── useUploadFile    # File uploads
-│   └── useZaps          # Lightning payments
+│   ├── use$             # Subscribe to observables
+│   ├── useEventStore    # Access EventStore
+│   ├── useAccount       # Authentication state
+│   ├── useUser          # User cast
+│   ├── useProfile       # User profile data
+│   ├── useTimeline      # Event timeline
+│   ├── usePublish       # Event publishing
+│   ├── useAction        # Execute actions
+│   └── useTheme         # Theme management
 ├── pages/               # Page components
 ├── lib/                 # Utility functions
-├── contexts/            # React context providers
-└── test/                # Testing utilities
+├── types/               # TypeScript type definitions
+└── test/                # Testing utilities (TestApp)
 ```
 
 ## 🎨 UI Components
@@ -196,43 +188,56 @@ MKStack includes 48+ shadcn/ui components:
 - `TestApp` component provides all necessary context providers
 - Mocked browser APIs (matchMedia, scrollTo, IntersectionObserver, ResizeObserver)
 
-## 🚀 Deployment
+## 🏗️ Building & Deployment
 
-Built-in deployment to NostrDeploy.com:
+Build your Applestack app for production:
 
 ```bash
-npm run deploy
+npm run build       # Build for production
+npm run preview     # Preview production build locally
 ```
 
-Your app goes live instantly with:
-- Automatic builds
-- CDN distribution
-- HTTPS support
-- Custom domains available
+Deploy to your preferred platform:
+- **Vercel**: `vercel deploy`
+- **Netlify**: `netlify deploy --prod`
+- **GitHub Pages**: Configure in your repository settings
+- **Custom Server**: Serve the `dist` folder
 
 ## 📚 Documentation
 
-For detailed documentation on building Nostr applications with MKStack:
+For detailed documentation on building Nostr applications:
 
-- [Tutorial](https://soapbox.pub/blog/mkstack-tutorial)
-- [Nostr Protocol Documentation](https://nostr.com)
-- [shadcn/ui Components](https://ui.shadcn.com)
+- **Project Docs**: See `docs/` directory for implementation guides
+  - `docs/AI_CHAT.md`: Building AI-powered chat interfaces
+  - `docs/NOSTR_COMMENTS.md`: Implementing comment systems
+  - `docs/NOSTR_INFINITE_SCROLL.md`: Feed interfaces with pagination
+  - `docs/NOSTR_DIRECT_MESSAGES.md`: Direct messaging (NIP-04/NIP-17)
+- **Applesauce**: [GitHub Repository](https://github.com/hzrd149/applesauce)
+- **Nostr Protocol**: [nostr.com](https://nostr.com)
+- **shadcn/ui**: [ui.shadcn.com](https://ui.shadcn.com)
 
 ## 🤝 Contributing
 
-MKStack is open source and welcomes contributions. The framework is designed to be:
+Applestack is open source and welcomes contributions. The framework is designed to be:
 
-- **Extensible**: Easy to add new NIPs and features
-- **Maintainable**: Clean architecture with TypeScript
-- **Testable**: Comprehensive testing setup included
-- **Documented**: Clear patterns and examples
+- **Extensible**: Easy to add new NIPs and features with Applesauce
+- **Maintainable**: Clean reactive architecture with TypeScript
+- **Testable**: Comprehensive testing setup with Vitest and Testing Library
+- **Documented**: Clear patterns and implementation guides in `docs/`
+
+To contribute:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes following the project patterns
+4. Ensure tests pass with `npm test`
+5. Submit a pull request
 
 ## 📄 License
 
-Open source - build amazing Nostr applications and help grow the decentralized web!
+MIT License - Open source and free to use. Build amazing Nostr applications and help grow the decentralized web!
 
 ---
 
-**"Vibed with MKStack"** - [Learn more about MKStack](https://soapbox.pub/mkstack)
+**Built with Applestack** - A production-ready Nostr client framework powered by Applesauce v5.
 
-*Build your Nostr app in minutes, not months. Start with AI, deploy instantly.*
+*Reactive, type-safe, and ready for production.*
