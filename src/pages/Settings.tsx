@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,7 +17,6 @@ import {
   RemoveInboxRelay,
   RemoveOutboxRelay,
 } from "applesauce-actions/actions/mailboxes";
-import { relaySet } from "applesauce-core/helpers";
 import { runner } from "@/services/actions";
 
 function LookupRelaysSection() {
@@ -34,33 +32,13 @@ function LookupRelaysSection() {
     lookupRelays.next(newRelays);
   };
 
-  const resetLookupRelays = () => {
-    lookupRelays.next([
-      "wss://purplepag.es/",
-      "wss://index.hzrd149.com/",
-      "wss://indexer.coracle.social/",
-    ]);
-  };
-
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle>Lookup Relays</CardTitle>
-            <CardDescription>
-              Used for discovering user profiles and relay lists
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetLookupRelays}
-            title="Reset to default lookup relays"
-          >
-            Reset
-          </Button>
-        </div>
+        <CardTitle>Lookup Relays</CardTitle>
+        <CardDescription>
+          Used for discovering user profiles and relay lists
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -153,37 +131,13 @@ function ExtraRelaysSection() {
     extraRelays.next(newRelays);
   };
 
-  const resetExtraRelays = () => {
-    extraRelays.next(
-      relaySet([
-        "wss://relay.damus.io",
-        "wss://nos.lol",
-        "wss://relay.primal.net",
-        "wss://nostr.wine",
-        "wss://relay.snort.social",
-      ]),
-    );
-  };
-
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle>Extra Relays</CardTitle>
-            <CardDescription>
-              Always used when fetching or publishing events across the app
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetExtraRelays}
-            title="Reset to default extra relays"
-          >
-            Reset
-          </Button>
-        </div>
+        <CardTitle>Extra Relays</CardTitle>
+        <CardDescription>
+          Always used when fetching or publishing events across the app
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
